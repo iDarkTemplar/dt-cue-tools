@@ -23,9 +23,14 @@
 #include <list>
 #include <stdexcept>
 #include <sstream>
+#include <memory>
 
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
+
+#include <boost/regex.hpp>
+#include <boost/lexical_cast.hpp>
 
 struct track_data
 {
@@ -46,6 +51,18 @@ enum class gap_action_type
 	append_prepend_first
 };
 
+void rename_tag(std::map<std::string, std::string> &tags, const std::string &oldname, const std::string &newname)
+{
+	auto tag_old = tags.find(oldname);
+	auto tag_new = tags.find(newname);
+
+	if ((tag_old != tags.end()) && (tag_new == tags.end()))
+	{
+		tags[newname] = tag_old->second;
+		tags.erase(tag_old);
+	}
+}
+
 std::list<track_data> convert_cue_to_tracks(const dtcue::cue &cue, gap_action_type gap_action)
 {
 	std::list<track_data> result;
@@ -54,16 +71,7 @@ std::list<track_data> convert_cue_to_tracks(const dtcue::cue &cue, gap_action_ty
 	global_tags = cue.tags;
 
 	// NOTE: initial TITLE is transformed into ALBUM, TITLE for track is left as it is
-	{
-		auto tag_title = global_tags.find("TITLE");
-		auto tag_album = global_tags.find("ALBUM");
-
-		if ((tag_title != global_tags.end()) && (tag_album == global_tags.end()))
-		{
-			global_tags["ALBUM"] = tag_title->second;
-			global_tags.erase(tag_title);
-		}
-	}
+	rename_tag(global_tags, "TITLE", "ALBUM");
 
 	for (auto file = cue.files.begin(); file != cue.files.end(); ++file)
 	{
@@ -97,6 +105,9 @@ std::list<track_data> convert_cue_to_tracks(const dtcue::cue &cue, gap_action_ty
 				tracknumber << data.index;
 				data.tags["TRACKNUMBER"] = tracknumber.str();
 			}
+
+			// NOTE: rename PERFORMER tag into ARTIST
+			rename_tag(data.tags, "PERFORMER", "ARTIST");
 
 			switch (gap_action)
 			{
@@ -169,7 +180,7 @@ std::list<track_data> convert_cue_to_tracks(const dtcue::cue &cue, gap_action_ty
 
 void print_usage(const char *name)
 {
-	fprintf(stderr, "USAGE: %s [-v|--verbose] [-n|--dry-run] [--gap-discard|--gap-prepend|--gap-append|--gap-append2] cuesheet\n", name);
+	fprintf(stderr, "USAGE: %s [-v|--verbose] [-n|--dry-run] [--gap-discard|--gap-prepend|--gap-append|--gap-append2] [-s<c>] cuesheet\n", name);
 }
 
 int main(int argc, char **argv)
@@ -178,120 +189,278 @@ int main(int argc, char **argv)
 	bool dry_run = false;
 	gap_action_type gap_action = gap_action_type::discard;
 	char *filename = NULL;
+	boost::optional<char> separator;
 
-	for (int i = 1; i < argc; ++i)
+	try
 	{
-		if ((strcmp(argv[i], "-v") == 0)
-			|| (strcmp(argv[i], "--verbose") == 0))
+		for (int i = 1; i < argc; ++i)
 		{
-			verbose = true;
+			if ((strcmp(argv[i], "-v") == 0)
+				|| (strcmp(argv[i], "--verbose") == 0))
+			{
+				verbose = true;
+			}
+			else if ((strcmp(argv[i], "-n") == 0)
+				|| (strcmp(argv[i], "--dry-run") == 0))
+			{
+				dry_run = true;
+			}
+			else if (strcmp(argv[i], "--gap-discard") == 0)
+			{
+				gap_action = gap_action_type::discard;
+			}
+			else if (strcmp(argv[i], "--gap-prepend") == 0)
+			{
+				gap_action = gap_action_type::prepend;
+			}
+			else if (strcmp(argv[i], "--gap-append") == 0)
+			{
+				gap_action = gap_action_type::append;
+			}
+			else if (strcmp(argv[i], "--gap-append2") == 0)
+			{
+				gap_action = gap_action_type::append_prepend_first;
+			}
+			else if ((strncmp(argv[i], "-s", 2) == 0) && (strlen(argv[i]) == 3))
+			{
+				separator = argv[i][2];
+			}
+			else if (filename == NULL)
+			{
+				filename = argv[i];
+			}
+			else
+			{
+				print_usage(argv[0]);
+				return -1;
+			}
 		}
-		else if ((strcmp(argv[i], "-n") == 0)
-			|| (strcmp(argv[i], "--dry-run") == 0))
-		{
-			dry_run = true;
-		}
-		else if (strcmp(argv[i], "--gap-discard") == 0)
-		{
-			gap_action = gap_action_type::discard;
-		}
-		else if (strcmp(argv[i], "--gap-prepend") == 0)
-		{
-			gap_action = gap_action_type::prepend;
-		}
-		else if (strcmp(argv[i], "--gap-append") == 0)
-		{
-			gap_action = gap_action_type::append;
-		}
-		else if (strcmp(argv[i], "--gap-append2") == 0)
-		{
-			gap_action = gap_action_type::append_prepend_first;
-		}
-		else if (filename == NULL)
-		{
-			filename = argv[i];
-		}
-		else
+
+		if (filename == NULL)
 		{
 			print_usage(argv[0]);
 			return -1;
 		}
-	}
 
-	if (filename == NULL)
-	{
-		print_usage(argv[0]);
-		return -1;
-	}
+		dtcue::cue cuesheet = dtcue::parse_cue_file(filename);
 
-	dtcue::cue cuesheet = dtcue::parse_cue_file(filename);
-
-	if (verbose)
-	{
-		printf("\nGlobal tags:\n");
-
-		for (auto tag = cuesheet.tags.begin(); tag != cuesheet.tags.end(); ++tag)
+		if (verbose)
 		{
-			printf("\t%s=%s\n", tag->first.c_str(), tag->second.c_str());
+			printf("\nGlobal tags:\n");
+
+			for (auto tag = cuesheet.tags.begin(); tag != cuesheet.tags.end(); ++tag)
+			{
+				printf("\t%s=%s\n", tag->first.c_str(), tag->second.c_str());
+			}
+
+			printf("Files:\n");
+
+			for (auto file = cuesheet.files.begin(); file != cuesheet.files.end(); ++file)
+			{
+				printf("\tFile: %s\n", file->filename.c_str());
+
+				for (auto track = file->tracks.begin(); track != file->tracks.end(); ++track)
+				{
+					printf("\t\tTrack %d\n", track->first);
+
+					for (auto index = track->second.indices.begin(); index != track->second.indices.end(); ++index)
+					{
+						printf("\t\t\tINDEX %02d: %s:%s:%s\n", index->first, index->second.minutes.c_str(), index->second.seconds.c_str(), index->second.chunks_of_seconds.c_str());
+					}
+
+					for (auto tag = track->second.tags.begin(); tag != track->second.tags.end(); ++tag)
+					{
+						printf("\t\t\t%s=%s\n", tag->first.c_str(), tag->second.c_str());
+					}
+				}
+			}
+
+			printf("\n");
 		}
 
-		printf("Files:\n");
+		std::list<track_data> tracks = convert_cue_to_tracks(cuesheet, gap_action);
 
-		for (auto file = cuesheet.files.begin(); file != cuesheet.files.end(); ++file)
+		if (verbose)
 		{
-			printf("\tFile: %s\n", file->filename.c_str());
-
-			for (auto track = file->tracks.begin(); track != file->tracks.end(); ++track)
+			for (auto track = tracks.begin(); track != tracks.end(); ++track)
 			{
-				printf("\t\tTrack %d\n", track->first);
+				printf("Track %d\n", track->index);
+				printf("Filename: %s\n", track->filename.c_str());
 
-				for (auto index = track->second.indices.begin(); index != track->second.indices.end(); ++index)
+				if (track->start_time)
 				{
-					printf("\t\t\tINDEX %02d: %s:%s:%s\n", index->first, index->second.minutes.c_str(), index->second.seconds.c_str(), index->second.chunks_of_seconds.c_str());
+					printf("Start: %s:%s:%s\n", track->start_time->minutes.c_str(), track->start_time->seconds.c_str(), track->start_time->chunks_of_seconds.c_str());
+				}
+				else
+				{
+					printf("Start: NONE\n");
 				}
 
-				for (auto tag = track->second.tags.begin(); tag != track->second.tags.end(); ++tag)
+				if (track->end_time)
 				{
-					printf("\t\t\t%s=%s\n", tag->first.c_str(), tag->second.c_str());
+					printf("End:   %s:%s:%s\n", track->end_time->minutes.c_str(), track->end_time->seconds.c_str(), track->end_time->chunks_of_seconds.c_str());
+				}
+				else
+				{
+					printf("End:   NONE\n");
+				}
+
+				for (auto tag = track->tags.begin(); tag != track->tags.end(); ++tag)
+				{
+					printf("%s=%s\n", tag->first.c_str(), tag->second.c_str());
 				}
 			}
 		}
 
-		printf("\n");
-	}
+		if (!separator)
+		{
+			std::unique_ptr<FILE, int (*)(FILE*)> version_file(popen("flac --version", "r"), &fclose);
+			if (!version_file)
+			{
+				fprintf(stderr, "Can't open piped child process\n");
+				return -1;
+			}
 
-	std::list<track_data> tracks = convert_cue_to_tracks(cuesheet, gap_action);
+			char *buffer = NULL;
+			size_t bufsize = 0;
+			ssize_t result;
 
-	if (verbose)
-	{
+			result = getline(&buffer, &bufsize, version_file.get());
+			std::unique_ptr<char, void (*)(void*)> managed_buffer(buffer, &free);
+
+			if ((result < 0) || (buffer == NULL))
+			{
+				fprintf(stderr, "Error in function getline\n");
+				return -1;
+			}
+
+			std::string bufferstr = buffer;
+
+			boost::regex regex_flac_version(".*flac ([[:digit:]]+)\\.([[:digit:]]+)\\.[[:digit:]]+.*");
+			boost::smatch regex_results;
+
+			if (!boost::regex_match(bufferstr, regex_results, regex_flac_version))
+			{
+				fprintf(stderr, "Line is: %s\n", buffer);
+				fprintf(stderr, "Couldn't query version of flac tool. Please manually specify separator with option -s<c>\n");
+				return -1;
+			}
+
+			unsigned int a, b;
+			a = boost::lexical_cast<unsigned int>(regex_results[1].str());
+			b = boost::lexical_cast<unsigned int>(regex_results[2].str());
+
+			// check if flac is 1.3.0 or greater
+			if ((a > 1)
+				|| ((a == 1)
+					&& (b >= 3)))
+			{
+				separator = ',';
+			}
+			else
+			{
+				separator = '.';
+			}
+		}
+
 		for (auto track = tracks.begin(); track != tracks.end(); ++track)
 		{
-			printf("Track %d\n", track->index);
-			printf("Filename: %s\n", track->filename.c_str());
+			std::list<std::string> commands;
 
-			if (track->start_time)
 			{
-				printf("Start: %s:%s:%s\n", track->start_time->minutes.c_str(), track->start_time->seconds.c_str(), track->start_time->chunks_of_seconds.c_str());
-			}
-			else
-			{
-				printf("Start: NONE\n");
+				std::stringstream cmdstream;
+				cmdstream << "flac -d -F";
+
+				if (track->start_time)
+				{
+					cmdstream << " --skip=" << track->start_time->minutes << ':' << track->start_time->seconds << *separator << track->start_time->chunks_of_seconds;
+				}
+
+				if (track->end_time)
+				{
+					cmdstream << " --until=" << track->end_time->minutes << ':' << track->end_time->seconds << *separator << track->end_time->chunks_of_seconds;
+				}
+
+				cmdstream << " -o \"_track_" << track->index << ".wav\" \"" << track->filename << "\"";
+
+				commands.push_back(cmdstream.str());
+
+				cmdstream.str(std::string());
+
+				cmdstream << "flac -8 -F --no-lax \"_track_" << track->index << ".wav\"";
+
+				commands.push_back(cmdstream.str());
+
+				cmdstream.str(std::string());
+
+				cmdstream << "rm \"_track_" << track->index << ".wav\"";
+
+				commands.push_back(cmdstream.str());
+
+				cmdstream.str(std::string());
+
+				cmdstream << "metaflac";
+
+				// first set ALBUM, TITLE, ARTIST and TRACKNUMBER, after that set everything else
+				std::list<std::string> preferred_tags;
+				preferred_tags.push_back("ALBUM");
+				preferred_tags.push_back("TITLE");
+				preferred_tags.push_back("ARTIST");
+				preferred_tags.push_back("TRACKNUMBER");
+
+				for (auto searched = preferred_tags.begin(); searched != preferred_tags.end(); ++searched)
+				{
+					auto tag = track->tags.find(*searched);
+					if (tag != track->tags.end())
+					{
+						cmdstream << " --set-tag\"" << tag->first << "=" << tag->second << "\"";
+					}
+				}
+
+				for (auto tag = track->tags.begin(); tag != track->tags.end(); ++tag)
+				{
+					if (std::find(preferred_tags.begin(), preferred_tags.end(), tag->first) == preferred_tags.end())
+					{
+						cmdstream << " --set-tag\"" << tag->first << "=" << tag->second << "\"";
+					}
+				}
+
+				cmdstream << " \"_track_" << track->index << ".flac\"";
+
+				commands.push_back(cmdstream.str());
+
+				auto tag = track->tags.find("TITLE");
+				if (tag != track->tags.end())
+				{
+					cmdstream.str(std::string());
+					cmdstream << "mv \"_track_" << track->index << ".flac\" \"" << track->index << " - " << tag->second << ".flac\"";
+					commands.push_back(cmdstream.str());
+				}
 			}
 
-			if (track->end_time)
+			for (auto command = commands.begin(); command != commands.end(); ++command)
 			{
-				printf("End:   %s:%s:%s\n", track->end_time->minutes.c_str(), track->end_time->seconds.c_str(), track->end_time->chunks_of_seconds.c_str());
-			}
-			else
-			{
-				printf("End:   NONE\n");
-			}
+				if (verbose)
+				{
+					printf("%s\n", command->c_str());
+				}
 
-			for (auto tag = track->tags.begin(); tag != track->tags.end(); ++tag)
-			{
-				printf("%s=%s\n", tag->first.c_str(), tag->second.c_str());
+				if (!dry_run)
+				{
+					system(command->c_str());
+				}
 			}
 		}
+	}
+	catch (const std::exception &exc)
+	{
+		fprintf(stderr, "Caught std::exception: %s\n", exc.what());
+		return -1;
+	}
+	catch (...)
+	{
+		fprintf(stderr, "Caught unknown exception\n");
+		return -1;
 	}
 
 	return 0;

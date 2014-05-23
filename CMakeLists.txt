@@ -13,7 +13,7 @@ set(CPACK_PACKAGE_VERSION_PATCH ${DTCT_VERSION_PATCH})
 set(CPACK_GENERATOR "TBZ2")
 set(CPACK_SOURCE_GENERATOR "TBZ2")
 set(CPACK_SOURCE_IGNORE_FILES
-	".git;build;CMakeLists.txt.user;CMakeLists.txt.user.*;ignore;TODO")
+	".git;build;CMakeLists.txt.user;CMakeLists.txt.user.*;ignore;TODO;cppcheck-linux.sh")
 set(CPACK_SOURCE_PACKAGE_FILE_NAME "${CMAKE_PROJECT_NAME}-${DTCT_VERSION}")
 # MUST be after CPACK_* variables.
 include(CPack)
@@ -76,7 +76,7 @@ add_library( dt-cue-parser SHARED ${CUE_LIBRARY_SOURCES} ${CUE_LIBRARY_HEADERS} 
 target_link_libraries( dt-cue-parser ${Boost_LIBRARIES} )
 
 add_executable( dt-flac-split ${FLAC_APP_SOURCES} ${FLAC_APP_HEADERS})
-target_link_libraries( dt-flac-split dt-cue-parser )
+target_link_libraries( dt-flac-split dt-cue-parser ${Boost_LIBRARIES} )
 
 #ENABLE_TESTING()
 
