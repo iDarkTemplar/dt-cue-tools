@@ -38,18 +38,28 @@ int main(int argc, char **argv)
 
 	for (auto tag = cuesheet.tags.begin(); tag != cuesheet.tags.end(); ++tag)
 	{
-		printf("%s=%s\n", tag->first.c_str(), tag->second.c_str());
+		printf("\t%s=%s\n", tag->first.c_str(), tag->second.c_str());
 	}
 
-	printf("Tracks:\n");
+	printf("Files:\n");
 
-	for (auto track = cuesheet.tracks.begin(); track != cuesheet.tracks.end(); ++track)
+	for (auto file = cuesheet.files.begin(); file != cuesheet.files.end(); ++file)
 	{
-		printf("Next track\n");
+		printf("\tFile: %s\n", file->filename.c_str());
 
-		for (auto tag = track->tags.begin(); tag != track->tags.end(); ++tag)
+		for (auto track = file->tracks.begin(); track != file->tracks.end(); ++track)
 		{
-			printf("%s=%s\n", tag->first.c_str(), tag->second.c_str());
+			printf("\t\tTrack %d\n", track->first);
+
+			for (auto index = track->second.indices.begin(); index != track->second.indices.end(); ++index)
+			{
+				printf("\t\t\tINDEX %02d: %s:%s:%s\n", index->first, index->second.minutes.c_str(), index->second.seconds.c_str(), index->second.chunks_of_seconds.c_str());
+			}
+
+			for (auto tag = track->second.tags.begin(); tag != track->second.tags.end(); ++tag)
+			{
+				printf("\t\t\t%s=%s\n", tag->first.c_str(), tag->second.c_str());
+			}
 		}
 	}
 

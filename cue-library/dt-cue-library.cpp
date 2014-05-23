@@ -67,7 +67,7 @@ cue parse_cue_file(const std::string &filename)
 	boost::regex regex_performer("^[ ]*PERFORMER \"([^\"]*)\"[[:cntrl:]]*$");
 	boost::regex regex_file("^[ ]*FILE \"([^\"]*)\" [[:alnum:]]+[[:cntrl:]]*$");
 	boost::regex regex_track("^[ ]*TRACK ([[:digit:]]+) ([[:alpha:]]+)[[:cntrl:]]*$");
-	boost::regex regex_index("^[ ]*INDEX ([[:digit:]]+) ([[:digit:]]+[:\\.,][[:digit:]]+[:\\.,][[:digit:]]+)[[:cntrl:]]*$");
+	boost::regex regex_index("^[ ]*INDEX ([[:digit:]]+) ([[:digit:]]+)[:\\.,]([[:digit:]]+)[:\\.,]([[:digit:]]+)[[:cntrl:]]*$");
 	boost::regex regex_comment_quoted("^[ ]*REM ([[:alnum:]]+) \"([^\"]*)\"[[:cntrl:]]*$");
 	boost::regex regex_comment_plain("^[ ]*REM ([[:alnum:]]+) ([^[:cntrl:]]+)[[:cntrl:]]*$");
 	boost::regex regex_else_quoted("^[ ]*([[:alnum:]]+) \"([^\"]*)\"[[:cntrl:]]*$");
@@ -76,9 +76,10 @@ cue parse_cue_file(const std::string &filename)
 	boost::smatch results;
 
 	bool got_track = false;
-	boost::optional<std::string> obtained_filename;
+	bool got_filename = false;
+	file obtained_file;
 	track obtained_track;
-	file_chunk obtained_chunk;
+	unsigned int track_index = 0;
 	std::map<std::string, std::string> tags;
 
 	while (std::getline(input_file, file_line))
@@ -109,8 +110,24 @@ cue parse_cue_file(const std::string &filename)
 			printf("\tGot file: %s\n", results[1].str().c_str());
 #endif /* NDEBUG */
 
-			// TODO: process file
-			obtained_filename = results[1].str();
+			if (got_filename)
+			{
+				if (got_track)
+				{
+					obtained_track.tags = std::move(tags);
+					obtained_file.tracks[track_index] = obtained_track;
+				}
+
+				result.files.push_back(obtained_file);
+				tags.clear();
+				obtained_track = track();
+				track_index = 0;
+				got_track = false;
+			}
+
+			got_filename = true;
+			obtained_file = file();
+			obtained_file.filename = results[1].str();
 		}
 		else if (boost::regex_match(file_line, results, regex_track))
 		{
@@ -118,7 +135,7 @@ cue parse_cue_file(const std::string &filename)
 			printf("\tGot track: %s, type %s\n", results[1].str().c_str(), results[2].str().c_str());
 #endif /* NDEBUG */
 
-			if (!obtained_filename)
+			if (!got_filename)
 			{
 				throw std::runtime_error("Got tag TRACK before any tag FILE");
 			}
@@ -126,19 +143,20 @@ cue parse_cue_file(const std::string &filename)
 			if (got_track)
 			{
 				obtained_track.tags = std::move(tags);
-				result.tracks.push_back(std::move(obtained_track));
+				obtained_file.tracks[track_index] = obtained_track;
 			}
 			else
 			{
-				result.tags = std::move(tags);
+				result.tags.insert(tags.begin(), tags.end());
 			}
 
 			tags.clear();
 
-			// NOTE: check type being AUDIO, everything else is ignored
 			got_track = true;
 			obtained_track = track();
-			obtained_track.index = boost::lexical_cast<unsigned int>(results[1].str());
+			track_index = boost::lexical_cast<unsigned int>(results[1].str());
+
+			// NOTE: check type being AUDIO, everything else is ignored
 			if (results[2].str() == std::string("AUDIO"))
 			{
 				obtained_track.type = dtcue::track_type::audio;
@@ -151,12 +169,21 @@ cue parse_cue_file(const std::string &filename)
 		else if (boost::regex_match(file_line, results, regex_index))
 		{
 #ifndef NDEBUG
-			printf("\tGot index: %s, value %s\n", results[1].str().c_str(), results[2].str().c_str());
+			printf("\tGot index: %s, value %s:%s:%s\n", results[1].str().c_str(), results[2].str().c_str(), results[3].str().c_str(), results[4].str().c_str());
 #endif /* NDEBUG */
 
-			// NOTE: check index being 00 or 01, everything else is ignored
+			if (!got_track)
+			{
+				throw std::runtime_error("Got tag INDEX before any tag TRACK");
+			}
 
-			// TODO: process index
+			time_point index;
+			index.minutes = results[2].str();
+			index.seconds = results[3].str();
+			index.chunks_of_seconds = results[4].str();
+
+			// NOTE: check index being 00 or 01, everything else is ignored
+			obtained_track.indices[boost::lexical_cast<unsigned int>(results[1].str())] = index;
 		}
 		else if (boost::regex_match(file_line, results, regex_comment_quoted))
 		{
@@ -196,7 +223,16 @@ cue parse_cue_file(const std::string &filename)
 		}
 	}
 
-	// TODO: process "hanging" files, tracks, etc.
+	if (got_filename)
+	{
+		if (got_track)
+		{
+			obtained_track.tags = std::move(tags);
+			obtained_file.tracks[track_index] = obtained_track;
+		}
+
+		result.files.push_back(obtained_file);
+	}
 
 	return result;
 }

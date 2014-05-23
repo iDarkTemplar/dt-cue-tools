@@ -42,30 +42,27 @@ struct time_point
 	std::string chunks_of_seconds;
 };
 
-struct file_chunk
-{
-	std::string filename;
-
-	boost::optional<time_point> start_point;
-	boost::optional<time_point> end_point;
-};
-
 struct track
 {
 	std::map<std::string, std::string> tags;
 
-	std::vector<file_chunk> file_chunks;
-
-	unsigned int index;
-
 	track_type type;
+
+	std::map<unsigned int, time_point> indices;
+};
+
+struct file
+{
+	std::string filename;
+
+	std::map<unsigned int, track> tracks;
 };
 
 struct cue
 {
 	std::map<std::string, std::string> tags;
 
-	std::vector<track> tracks;
+	std::vector<file> files;
 };
 
 cue parse_cue_file(const std::string &filename);
