@@ -22,6 +22,7 @@
 
 #include <stdexcept>
 #include <fstream>
+#include <sstream>
 
 #include <utility>
 
@@ -114,6 +115,13 @@ cue parse_cue_file(const std::string &filename)
 			{
 				if (got_track)
 				{
+					if (obtained_track.indices.find(1) == obtained_track.indices.end())
+					{
+						std::stringstream err;
+						err << "Track with index " << track_index << " doesn't have index 01";
+						throw std::runtime_error(err.str());
+					}
+
 					obtained_track.tags = std::move(tags);
 					obtained_file.tracks[track_index] = obtained_track;
 				}
@@ -142,6 +150,13 @@ cue parse_cue_file(const std::string &filename)
 
 			if (got_track)
 			{
+				if (obtained_track.indices.find(1) == obtained_track.indices.end())
+				{
+					std::stringstream err;
+					err << "Track with index " << track_index << " doesn't have index 01";
+					throw std::runtime_error(err.str());
+				}
+
 				obtained_track.tags = std::move(tags);
 				obtained_file.tracks[track_index] = obtained_track;
 			}
@@ -227,6 +242,13 @@ cue parse_cue_file(const std::string &filename)
 	{
 		if (got_track)
 		{
+			if (obtained_track.indices.find(1) == obtained_track.indices.end())
+			{
+				std::stringstream err;
+				err << "Track with index " << track_index << " doesn't have index 01";
+				throw std::runtime_error(err.str());
+			}
+
 			obtained_track.tags = std::move(tags);
 			obtained_file.tracks[track_index] = obtained_track;
 		}
