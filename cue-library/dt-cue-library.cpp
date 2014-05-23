@@ -23,9 +23,12 @@
 #include <stdexcept>
 #include <fstream>
 
+#include <utility>
+
 #include <sys/stat.h>
 
 #include <boost/regex.hpp>
+#include <boost/lexical_cast.hpp>
 
 #ifndef NDEBUG
 #include <stdio.h>
@@ -60,44 +63,54 @@ cue parse_cue_file(const std::string &filename)
 
 	cue result;
 
-	boost::regex regex_title("^[ ]*TITLE \"([^\"]*)\"[[:cntrl:]]?$");
-	boost::regex regex_performer("^[ ]*PERFORMER \"([^\"]*)\"[[:cntrl:]]?$");
-	boost::regex regex_file("^[ ]*FILE \"([^\"]*)\" [[:alnum:]]+[[:cntrl:]]?$");
-	boost::regex regex_track("^[ ]*TRACK ([[:digit:]]+) ([[:alpha:]]+)[[:cntrl:]]?$");
-	boost::regex regex_index("^[ ]*INDEX ([[:digit:]]+) ([[:digit:]]+[:\\.,][[:digit:]]+[:\\.,][[:digit:]]+)[[:cntrl:]]?$");
-	boost::regex regex_comment_quoted("^[ ]*REM ([[:alnum:]]+) \"([^\"]*)\"[[:cntrl:]]?$");
-	boost::regex regex_comment_plain("^[ ]*REM ([[:alnum:]]+) ([^[:cntrl:]]+)[[:cntrl:]]?$");
-	boost::regex regex_else_quoted("^[ ]*([[:alnum:]]+) \"([^\"]*)\"[[:cntrl:]]?$");
-	boost::regex regex_else_plain("^[ ]*([[:alnum:]]+) ([^[:cntrl:]]+)[[:cntrl:]]?$");
+	boost::regex regex_title("^[ ]*TITLE \"([^\"]*)\"[[:cntrl:]]*$");
+	boost::regex regex_performer("^[ ]*PERFORMER \"([^\"]*)\"[[:cntrl:]]*$");
+	boost::regex regex_file("^[ ]*FILE \"([^\"]*)\" [[:alnum:]]+[[:cntrl:]]*$");
+	boost::regex regex_track("^[ ]*TRACK ([[:digit:]]+) ([[:alpha:]]+)[[:cntrl:]]*$");
+	boost::regex regex_index("^[ ]*INDEX ([[:digit:]]+) ([[:digit:]]+[:\\.,][[:digit:]]+[:\\.,][[:digit:]]+)[[:cntrl:]]*$");
+	boost::regex regex_comment_quoted("^[ ]*REM ([[:alnum:]]+) \"([^\"]*)\"[[:cntrl:]]*$");
+	boost::regex regex_comment_plain("^[ ]*REM ([[:alnum:]]+) ([^[:cntrl:]]+)[[:cntrl:]]*$");
+	boost::regex regex_else_quoted("^[ ]*([[:alnum:]]+) \"([^\"]*)\"[[:cntrl:]]*$");
+	boost::regex regex_else_plain("^[ ]*([[:alnum:]]+) ([^[:cntrl:]]+)[[:cntrl:]]*$");
 
 	boost::smatch results;
+
+	bool got_track = false;
+	boost::optional<std::string> obtained_filename;
+	track obtained_track;
+	file_chunk obtained_chunk;
+	std::map<std::string, std::string> tags;
 
 	while (std::getline(input_file, file_line))
 	{
 #ifndef NDEBUG
-		printf("Line: %s\n",file_line.c_str());
+		printf("Line: %s\n", file_line.c_str());
 #endif /* NDEBUG */
 
-		// TODO: process line;
 		if (boost::regex_match(file_line, results, regex_title))
 		{
 #ifndef NDEBUG
 			printf("\tGot title: %s\n", results[1].str().c_str());
 #endif /* NDEBUG */
 
-			// NOTE: initial TITLE is transformed into ALBUM, TITLE for track is left as it is
+			tags["TITLE"] = results[1].str();
 		}
 		else if (boost::regex_match(file_line, results, regex_performer))
 		{
 #ifndef NDEBUG
 			printf("\tGot performer: %s\n", results[1].str().c_str());
 #endif /* NDEBUG */
+
+			tags["PERFORMER"] = results[1].str();
 		}
 		else if (boost::regex_match(file_line, results, regex_file))
 		{
 #ifndef NDEBUG
 			printf("\tGot file: %s\n", results[1].str().c_str());
 #endif /* NDEBUG */
+
+			// TODO: process file
+			obtained_filename = results[1].str();
 		}
 		else if (boost::regex_match(file_line, results, regex_track))
 		{
@@ -105,7 +118,35 @@ cue parse_cue_file(const std::string &filename)
 			printf("\tGot track: %s, type %s\n", results[1].str().c_str(), results[2].str().c_str());
 #endif /* NDEBUG */
 
-			// TODO: check type being AUDIO, everything else is ignored
+			if (!obtained_filename)
+			{
+				throw std::runtime_error("Got tag TRACK before any tag FILE");
+			}
+
+			if (got_track)
+			{
+				obtained_track.tags = std::move(tags);
+				result.tracks.push_back(std::move(obtained_track));
+			}
+			else
+			{
+				result.tags = std::move(tags);
+			}
+
+			tags.clear();
+
+			// NOTE: check type being AUDIO, everything else is ignored
+			got_track = true;
+			obtained_track = track();
+			obtained_track.index = boost::lexical_cast<unsigned int>(results[1].str());
+			if (results[2].str() == std::string("AUDIO"))
+			{
+				obtained_track.type = dtcue::track_type::audio;
+			}
+			else
+			{
+				obtained_track.type = dtcue::track_type::unknown;
+			}
 		}
 		else if (boost::regex_match(file_line, results, regex_index))
 		{
@@ -113,33 +154,49 @@ cue parse_cue_file(const std::string &filename)
 			printf("\tGot index: %s, value %s\n", results[1].str().c_str(), results[2].str().c_str());
 #endif /* NDEBUG */
 
-			// TODO: check index being 00 or 01, everything else is ignored
+			// NOTE: check index being 00 or 01, everything else is ignored
+
+			// TODO: process index
 		}
 		else if (boost::regex_match(file_line, results, regex_comment_quoted))
 		{
 #ifndef NDEBUG
 			printf("\tGot comment quoted:\n\tName: %s\n\tValue: %s\n", results[1].str().c_str(), results[2].str().c_str());
 #endif /* NDEBUG */
+
+			tags[results[1].str()] = results[2].str();
 		}
 		else if (boost::regex_match(file_line, results, regex_comment_plain))
 		{
 #ifndef NDEBUG
 			printf("\tGot comment:\n\tName: %s\n\tValue: %s\n", results[1].str().c_str(), results[2].str().c_str());
 #endif /* NDEBUG */
+
+			tags[results[1].str()] = results[2].str();
 		}
 		else if (boost::regex_match(file_line, results, regex_else_quoted))
 		{
 #ifndef NDEBUG
 			printf("\tGot something else with quotes:\n\tName: %s\n\tValue: %s\n", results[1].str().c_str(), results[2].str().c_str());
 #endif /* NDEBUG */
+
+			tags[results[1].str()] = results[2].str();
 		}
 		else if (boost::regex_match(file_line, results, regex_else_plain))
 		{
 #ifndef NDEBUG
 			printf("\tGot something else:\n\tName: %s\n\tValue: %s\n", results[1].str().c_str(), results[2].str().c_str());
 #endif /* NDEBUG */
+
+			tags[results[1].str()] = results[2].str();
+		}
+		else
+		{
+			throw std::runtime_error("Unrecognized line: " + file_line);
 		}
 	}
+
+	// TODO: process "hanging" files, tracks, etc.
 
 	return result;
 }

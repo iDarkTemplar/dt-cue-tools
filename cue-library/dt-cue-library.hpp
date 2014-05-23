@@ -31,8 +31,8 @@ namespace dtcue {
 
 enum class track_type
 {
-	audio,
-	unknown
+	unknown,
+	audio
 };
 
 struct time_point
@@ -55,6 +55,8 @@ struct track
 	std::map<std::string, std::string> tags;
 
 	std::vector<file_chunk> file_chunks;
+
+	unsigned int index;
 
 	track_type type;
 };
