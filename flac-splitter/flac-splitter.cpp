@@ -18,4 +18,14 @@
  *
  */
 
- 
+#include <dt-cue-library.hpp>
+
+int main(int argc, char **argv)
+{
+	for (int i = 1; i < argc; ++i)
+	{
+		dtcue::parse_cue_file(argv[i]);
+	}
+
+	return 0;
+}

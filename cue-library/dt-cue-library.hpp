@@ -18,4 +18,56 @@
  *
  */
 
- 
+#ifndef DT_CUE_LIBRARY_HPP
+#define DT_CUE_LIBRARY_HPP
+
+#include <string>
+#include <map>
+#include <vector>
+
+#include <boost/optional.hpp>
+
+namespace dtcue {
+
+enum class track_type
+{
+	audio,
+	unknown
+};
+
+struct time_point
+{
+	std::string minutes;
+	std::string seconds;
+	std::string chunks_of_seconds;
+};
+
+struct file_chunk
+{
+	std::string filename;
+
+	boost::optional<time_point> start_point;
+	boost::optional<time_point> end_point;
+};
+
+struct track
+{
+	std::map<std::string, std::string> tags;
+
+	std::vector<file_chunk> file_chunks;
+
+	track_type type;
+};
+
+struct cue
+{
+	std::map<std::string, std::string> tags;
+
+	std::vector<track> tracks;
+};
+
+cue parse_cue_file(const std::string &filename);
+
+} // namespace dtcue
+
+#endif /* DT_CUE_LIBRARY_HPP */

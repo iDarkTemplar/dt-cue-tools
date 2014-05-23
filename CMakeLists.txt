@@ -37,10 +37,10 @@ endif (${CMAKE_SIZEOF_VOID_P} EQUAL 8)
 # don't USE -O3 with GCC, it causes less precise calculations
 if (CMAKE_COMPILER_IS_GNUCC)
 	set (CMAKE_C_FLAGS_RELEASE "-O2 -pipe -march=native -Wall -Wextra -Wno-unused-result -DNDEBUG")
-	set (CMAKE_CXX_FLAGS_RELEASE ${CMAKE_C_FLAGS_RELEASE})
+	set (CMAKE_CXX_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -std=c++0x")
 
 	set (CMAKE_C_FLAGS_DEBUG "-O0 -pipe -march=native -Wall -Wextra -Wno-unused-result -g -ggdb")
-	set (CMAKE_CXX_FLAGS_DEBUG ${CMAKE_C_FLAGS_DEBUG})
+	set (CMAKE_CXX_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -std=c++0x")
 endif (CMAKE_COMPILER_IS_GNUCC)
 
 # clang compiler options
@@ -48,10 +48,10 @@ if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
 	set (CLANG_WARNINGS "-Weverything -Wno-missing-prototypes -Wno-padded -Wno-sign-conversion -Wno-conversion -Wno-disabled-macro-expansion -Wno-cast-align" )
 
 	set (CMAKE_C_FLAGS_RELEASE "-O3 -pipe ${CLANG_WARNINGS} -DNDEBUG")
-	set (CMAKE_CXX_FLAGS_RELEASE ${CMAKE_C_FLAGS_RELEASE})
+	set (CMAKE_CXX_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -std=c++0x")
 
 	set (CMAKE_C_FLAGS_DEBUG "-O0 -pipe ${CLANG_WARNINGS} -g -ggdb")
-	set (CMAKE_CXX_FLAGS_DEBUG ${CMAKE_C_FLAGS_DEBUG})
+	set (CMAKE_CXX_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -std=c++0x")
 endif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
 
 if (UNIX)
@@ -73,7 +73,7 @@ set ( FLAC_APP_SOURCES flac-splitter/flac-splitter.cpp )
 set ( FLAC_APP_HEADERS )
 
 add_library( dt-cue-parser SHARED ${CUE_LIBRARY_SOURCES} ${CUE_LIBRARY_HEADERS} )
-target_link_libraries( dt-cue-parser )
+target_link_libraries( dt-cue-parser ${Boost_LIBRARIES} )
 
 add_executable( dt-flac-split ${FLAC_APP_SOURCES} ${FLAC_APP_HEADERS})
 target_link_libraries( dt-flac-split dt-cue-parser )
