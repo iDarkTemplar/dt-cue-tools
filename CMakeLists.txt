@@ -4,7 +4,7 @@ cmake_minimum_required( VERSION 2.8.8 )
 
 set(DTCT_VERSION_MAJOR 0)
 set(DTCT_VERSION_MINOR 1)
-set(DTCT_VERSION_PATCH 0)
+set(DTCT_VERSION_PATCH 1)
 set(DTCT_VERSION "${DTCT_VERSION_MAJOR}.${DTCT_VERSION_MINOR}.${DTCT_VERSION_PATCH}")
 
 set(CPACK_PACKAGE_VERSION_MAJOR ${DTCT_VERSION_MAJOR})
@@ -25,6 +25,7 @@ set(CMAKE_INSTALL_PREFIX "${INST_PREFIX}" CACHE INTERNAL "Prefix prepended to in
 
 message(STATUS "To change installation directory use -DINST_PREFIX=path, for example, -DINST_PREFIX=/usr")
 message(STATUS "To disable split tool, use -DDISABLE_FLAC_SPLIT=1")
+message(STATUS "set DISABLE_LIBVERSION to disable libraries versioning")
 
 message(STATUS "System: ${CMAKE_SYSTEM_NAME}" )
 if (${CMAKE_SIZEOF_VOID_P} EQUAL 8)
@@ -76,6 +77,9 @@ set ( FLAC_APP_SOURCES flac-splitter/flac-splitter.cpp )
 set ( FLAC_APP_HEADERS )
 
 add_library( dt-cue-parser SHARED ${CUE_LIBRARY_SOURCES} ${CUE_LIBRARY_HEADERS} )
+if (NOT DEFINED DISABLE_LIBVERSION)
+	set_target_properties( dt-cue-parser PROPERTIES VERSION ${DTCT_VERSION} SOVERSION ${DTCT_VERSION_MAJOR} )
+endif (NOT DEFINED DISABLE_LIBVERSION)
 target_link_libraries( dt-cue-parser ${Boost_LIBRARIES} )
 
 if (NOT DEFINED DISABLE_FLAC_SPLIT)

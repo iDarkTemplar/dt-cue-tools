@@ -413,7 +413,7 @@ int main(int argc, char **argv)
 					auto tag = track->tags.find(*searched);
 					if (tag != track->tags.end())
 					{
-						cmdstream << " --set-tag\"" << tag->first << "=" << tag->second << "\"";
+						cmdstream << " --set-tag=\"" << tag->first << "=" << tag->second << "\"";
 					}
 				}
 
@@ -421,7 +421,7 @@ int main(int argc, char **argv)
 				{
 					if (std::find(preferred_tags.begin(), preferred_tags.end(), tag->first) == preferred_tags.end())
 					{
-						cmdstream << " --set-tag\"" << tag->first << "=" << tag->second << "\"";
+						cmdstream << " --set-tag=\"" << tag->first << "=" << tag->second << "\"";
 					}
 				}
 
