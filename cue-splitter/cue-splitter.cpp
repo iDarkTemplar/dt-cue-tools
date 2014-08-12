@@ -369,19 +369,45 @@ int main(int argc, char **argv)
 
 			{
 				std::stringstream cmdstream;
-				cmdstream << "flac -d -F";
 
-				if (track->start_time)
+				if (track->filename.rfind(".flac") == track->filename.length() - strlen(".flac"))
 				{
-					cmdstream << " --skip=" << track->start_time->minutes << ':' << track->start_time->seconds << *separator << track->start_time->chunks_of_seconds;
-				}
+					cmdstream << "flac -d -F";
 
-				if (track->end_time)
+					if (track->start_time)
+					{
+						cmdstream << " --skip=" << track->start_time->minutes << ':' << track->start_time->seconds << *separator << track->start_time->chunks_of_seconds;
+					}
+
+					if (track->end_time)
+					{
+						cmdstream << " --until=" << track->end_time->minutes << ':' << track->end_time->seconds << *separator << track->end_time->chunks_of_seconds;
+					}
+
+					cmdstream << " -o \"_track_" << track->index << ".wav\" \"" << track->filename << "\"";
+				}
+				else if (track->filename.rfind(".wv") == track->filename.length() - strlen(".wv"))
 				{
-					cmdstream << " --until=" << track->end_time->minutes << ':' << track->end_time->seconds << *separator << track->end_time->chunks_of_seconds;
-				}
+					cmdstream << "wvunpack";
 
-				cmdstream << " -o \"_track_" << track->index << ".wav\" \"" << track->filename << "\"";
+					if (track->start_time)
+					{
+						unsigned int minutes = boost::lexical_cast<unsigned int>(track->start_time->minutes);
+						cmdstream << " --skip=" << minutes / 60 << ":" << minutes % 60 << ':' << track->start_time->seconds << "." << track->start_time->chunks_of_seconds;
+					}
+
+					if (track->end_time)
+					{
+						unsigned int minutes = boost::lexical_cast<unsigned int>(track->end_time->minutes);
+						cmdstream << " --until=" << minutes / 60 << ":" << minutes % 60 << ':' << track->end_time->seconds << "." << track->end_time->chunks_of_seconds;
+					}
+
+					cmdstream << " -o \"_track_" << track->index << ".wav\" \"" << track->filename << "\"";
+				}
+				else
+				{
+					continue;
+				}
 
 				commands.push_back(cmdstream.str());
 

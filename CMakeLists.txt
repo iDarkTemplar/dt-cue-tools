@@ -4,7 +4,7 @@ cmake_minimum_required( VERSION 2.8.8 )
 
 set(DTCT_VERSION_MAJOR 0)
 set(DTCT_VERSION_MINOR 1)
-set(DTCT_VERSION_PATCH 1)
+set(DTCT_VERSION_PATCH 2)
 set(DTCT_VERSION "${DTCT_VERSION_MAJOR}.${DTCT_VERSION_MINOR}.${DTCT_VERSION_PATCH}")
 
 set(CPACK_PACKAGE_VERSION_MAJOR ${DTCT_VERSION_MAJOR})
@@ -24,7 +24,7 @@ set(HEADERS_PREFIX "${INST_PREFIX}/include" CACHE PATH "Prefix prepended to head
 set(CMAKE_INSTALL_PREFIX "${INST_PREFIX}" CACHE INTERNAL "Prefix prepended to install directories" FORCE)
 
 message(STATUS "To change installation directory use -DINST_PREFIX=path, for example, -DINST_PREFIX=/usr")
-message(STATUS "To disable split tool, use -DDISABLE_FLAC_SPLIT=1")
+message(STATUS "To disable split tool, use -DDISABLE_SPLIT_TOOL=1")
 message(STATUS "set DISABLE_LIBVERSION to disable libraries versioning")
 
 message(STATUS "System: ${CMAKE_SYSTEM_NAME}" )
@@ -73,8 +73,8 @@ include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/cue-library )
 set ( CUE_LIBRARY_SOURCES cue-library/dt-cue-library.cpp )
 set ( CUE_LIBRARY_HEADERS cue-library/dt-cue-library.hpp )
 
-set ( FLAC_APP_SOURCES flac-splitter/flac-splitter.cpp )
-set ( FLAC_APP_HEADERS )
+set ( CUE_APP_SOURCES cue-splitter/cue-splitter.cpp )
+set ( CUE_APP_HEADERS )
 
 add_library( dt-cue-parser SHARED ${CUE_LIBRARY_SOURCES} ${CUE_LIBRARY_HEADERS} )
 if (NOT DEFINED DISABLE_LIBVERSION)
@@ -82,10 +82,10 @@ if (NOT DEFINED DISABLE_LIBVERSION)
 endif (NOT DEFINED DISABLE_LIBVERSION)
 target_link_libraries( dt-cue-parser ${Boost_LIBRARIES} )
 
-if (NOT DEFINED DISABLE_FLAC_SPLIT)
-	add_executable( dt-flac-split ${FLAC_APP_SOURCES} ${FLAC_APP_HEADERS})
-	target_link_libraries( dt-flac-split dt-cue-parser ${Boost_LIBRARIES} )
-endif (NOT DEFINED DISABLE_FLAC_SPLIT)
+if (NOT DEFINED DISABLE_SPLIT_TOOL)
+	add_executable( dt-cue-split ${CUE_APP_SOURCES} ${CUE_APP_HEADERS})
+	target_link_libraries( dt-cue-split dt-cue-parser ${Boost_LIBRARIES} )
+endif (NOT DEFINED DISABLE_SPLIT_TOOL)
 
 #ENABLE_TESTING()
 
@@ -102,8 +102,8 @@ endif (NOT DEFINED DISABLE_FLAC_SPLIT)
 # installation config
 install(TARGETS dt-cue-parser LIBRARY DESTINATION ${INSTALL_DIR_LIB} )
 
-if (NOT DEFINED DISABLE_FLAC_SPLIT)
-	install(TARGETS dt-flac-split RUNTIME DESTINATION bin)
-endif (NOT DEFINED DISABLE_FLAC_SPLIT)
+if (NOT DEFINED DISABLE_SPLIT_TOOL)
+	install(TARGETS dt-cue-split RUNTIME DESTINATION bin)
+endif (NOT DEFINED DISABLE_SPLIT_TOOL)
 
 install(FILES ${CUE_LIBRARY_HEADERS} DESTINATION "${HEADERS_PREFIX}")
