@@ -363,6 +363,9 @@ int main(int argc, char **argv)
 			}
 		}
 
+		std::list<std::list<std::string> > commands_list;
+		std::set<std::string> init_commands, deinit_commands;
+
 		for (auto track = tracks.begin(); track != tracks.end(); ++track)
 		{
 			std::list<std::string> commands;
@@ -403,6 +406,49 @@ int main(int argc, char **argv)
 					}
 
 					cmdstream << " -o \"_track_" << track->index << ".wav\" \"" << track->filename << "\"";
+				}
+				else if ((track->filename.rfind(".ape") == track->filename.length() - strlen(".ape"))
+					|| (track->filename.rfind(".wav") == track->filename.length() - strlen(".wav")))
+				{
+					std::string track_filename;
+
+					if (track->filename.rfind(".ape") == track->filename.length() - strlen(".ape"))
+					{
+						track_filename = track->filename;
+						track_filename.replace(track_filename.rfind(".ape"), std::string::npos, ".wav");
+
+						cmdstream << "mac \"" << track->filename << "\" \"" << track_filename << "\" -d";
+
+						init_commands.insert(cmdstream.str());
+
+						cmdstream.str(std::string());
+
+						cmdstream << "rm \"" << track_filename << "\"";
+
+						deinit_commands.insert(cmdstream.str());
+
+						cmdstream.str(std::string());
+					}
+					else
+					{
+						track_filename = track->filename;
+					}
+
+					cmdstream << "ffmpeg -i \"" << track_filename << "\"";
+
+					if (track->start_time)
+					{
+						unsigned int minutes = boost::lexical_cast<unsigned int>(track->start_time->minutes);
+						cmdstream << " -ss " << minutes / 60 << ":" << minutes % 60 << ':' << track->start_time->seconds << "." << track->start_time->chunks_of_seconds;
+					}
+
+					if (track->end_time)
+					{
+						unsigned int minutes = boost::lexical_cast<unsigned int>(track->end_time->minutes);
+						cmdstream << " -to " << minutes / 60 << ":" << minutes % 60 << ':' << track->end_time->seconds << "." << track->end_time->chunks_of_seconds;
+					}
+
+					cmdstream << " -acodec copy \"_track_" << track->index << ".wav\"";
 				}
 				else
 				{
@@ -464,7 +510,25 @@ int main(int argc, char **argv)
 				}
 			}
 
-			for (auto command = commands.begin(); command != commands.end(); ++command)
+			commands_list.push_back(commands);
+		}
+
+		for (auto command = init_commands.begin(); command != init_commands.end(); ++command)
+		{
+			if (verbose)
+			{
+				printf("%s\n", command->c_str());
+			}
+
+			if (!dry_run)
+			{
+				system(command->c_str());
+			}
+		}
+
+		for (auto command_list_item = commands_list.begin(); command_list_item != commands_list.end(); ++command_list_item)
+		{
+			for (auto command = command_list_item->begin(); command != command_list_item->end(); ++command)
 			{
 				if (verbose)
 				{
@@ -475,6 +539,19 @@ int main(int argc, char **argv)
 				{
 					system(command->c_str());
 				}
+			}
+		}
+
+		for (auto command = deinit_commands.begin(); command != deinit_commands.end(); ++command)
+		{
+			if (verbose)
+			{
+				printf("%s\n", command->c_str());
+			}
+
+			if (!dry_run)
+			{
+				system(command->c_str());
 			}
 		}
 	}
