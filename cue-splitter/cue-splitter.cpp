@@ -31,6 +31,7 @@
 
 #include <boost/regex.hpp>
 #include <boost/lexical_cast.hpp>
+#include <boost/optional.hpp>
 
 struct track_data
 {

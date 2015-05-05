@@ -25,13 +25,11 @@
 #include <map>
 #include <vector>
 
-#include <boost/optional.hpp>
-
 namespace dtcue {
 
 enum class track_type
 {
-	unknown,
+	unknown = 0,
 	audio
 };
 
