@@ -4,7 +4,7 @@ cmake_minimum_required( VERSION 2.8.8 )
 
 set(DTCT_VERSION_MAJOR 0)
 set(DTCT_VERSION_MINOR 1)
-set(DTCT_VERSION_PATCH 3)
+set(DTCT_VERSION_PATCH 4)
 set(DTCT_VERSION "${DTCT_VERSION_MAJOR}.${DTCT_VERSION_MINOR}.${DTCT_VERSION_PATCH}")
 
 set(CPACK_PACKAGE_VERSION_MAJOR ${DTCT_VERSION_MAJOR})
@@ -19,22 +19,18 @@ set(CPACK_SOURCE_PACKAGE_FILE_NAME "${CMAKE_PROJECT_NAME}-${DTCT_VERSION}")
 include(CPack)
 
 # installation directory configuration
-set(INST_PREFIX "/usr" CACHE PATH "Prefix prepended to install directories")
-set(HEADERS_PREFIX "${INST_PREFIX}/include" CACHE PATH "Prefix prepended to headers install directories")
-set(CMAKE_INSTALL_PREFIX "${INST_PREFIX}" CACHE INTERNAL "Prefix prepended to install directories" FORCE)
+set(LIB_SUFFIX "" CACHE STRING "Define suffix of directory name (32/64)")
+set(EXEC_INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX} CACHE PATH "Installation prefix for executables and object code libraries" FORCE)
+set(BIN_INSTALL_DIR ${EXEC_INSTALL_PREFIX}/bin CACHE PATH "Installation prefix for user executables" FORCE)
+set(SBIN_INSTALL_DIR ${EXEC_INSTALL_PREFIX}/sbin CACHE PATH "Installation prefix for user executables" FORCE)
+set(LIB_INSTALL_DIR ${EXEC_INSTALL_PREFIX}/lib${LIB_SUFFIX} CACHE PATH  "Installation prefix for object code libraries" FORCE)
+set(INCLUDE_INSTALL_DIR ${CMAKE_INSTALL_PREFIX}/include CACHE PATH "Installation prefix for C header files" FORCE)
+set(DATA_PREFIX "${CMAKE_INSTALL_PREFIX}/share" CACHE PATH "Prefix prepended to data install directories" FORCE)
 
-message(STATUS "To change installation directory use -DINST_PREFIX=path, for example, -DINST_PREFIX=/usr")
-message(STATUS "To disable split tool, use -DDISABLE_SPLIT_TOOL=1")
-message(STATUS "set DISABLE_LIBVERSION to disable libraries versioning")
+option(ENABLE_LIBVERSION "enable libraries versioning" ON)
+option(ENABLE_SPLIT_TOOL "enable split tool" ON)
 
 message(STATUS "System: ${CMAKE_SYSTEM_NAME}" )
-if (${CMAKE_SIZEOF_VOID_P} EQUAL 8)
-	message(STATUS "OS: 64 bit")
-	set (INSTALL_DIR_LIB "lib64")
-else (${CMAKE_SIZEOF_VOID_P} EQUAL 8)
-	message(STATUS "OS: 32 bit")
-	set (INSTALL_DIR_LIB "lib32")
-endif (${CMAKE_SIZEOF_VOID_P} EQUAL 8)
 
 # don't USE -O3 with GCC, it causes less precise calculations
 if (CMAKE_COMPILER_IS_GNUCC)
@@ -77,15 +73,15 @@ set ( CUE_APP_SOURCES cue-splitter/cue-splitter.cpp )
 set ( CUE_APP_HEADERS )
 
 add_library( dt-cue-parser SHARED ${CUE_LIBRARY_SOURCES} ${CUE_LIBRARY_HEADERS} )
-if (NOT DEFINED DISABLE_LIBVERSION)
+if (ENABLE_LIBVERSION)
 	set_target_properties( dt-cue-parser PROPERTIES VERSION ${DTCT_VERSION} SOVERSION ${DTCT_VERSION_MAJOR} )
-endif (NOT DEFINED DISABLE_LIBVERSION)
+endif (ENABLE_LIBVERSION)
 target_link_libraries( dt-cue-parser ${Boost_LIBRARIES} )
 
-if (NOT DEFINED DISABLE_SPLIT_TOOL)
+if (ENABLE_SPLIT_TOOL)
 	add_executable( dt-cue-split ${CUE_APP_SOURCES} ${CUE_APP_HEADERS})
 	target_link_libraries( dt-cue-split dt-cue-parser ${Boost_LIBRARIES} )
-endif (NOT DEFINED DISABLE_SPLIT_TOOL)
+endif (ENABLE_SPLIT_TOOL)
 
 #ENABLE_TESTING()
 
@@ -100,10 +96,10 @@ endif (NOT DEFINED DISABLE_SPLIT_TOOL)
 #endforeach (CURRENT_TEST)
 
 # installation config
-install(TARGETS dt-cue-parser LIBRARY DESTINATION ${INSTALL_DIR_LIB} )
+install(TARGETS dt-cue-parser LIBRARY DESTINATION ${LIB_INSTALL_DIR} )
 
-if (NOT DEFINED DISABLE_SPLIT_TOOL)
-	install(TARGETS dt-cue-split RUNTIME DESTINATION bin)
-endif (NOT DEFINED DISABLE_SPLIT_TOOL)
+if (ENABLE_SPLIT_TOOL)
+	install(TARGETS dt-cue-split RUNTIME DESTINATION ${BIN_INSTALL_DIR})
+endif (ENABLE_SPLIT_TOOL)
 
-install(FILES ${CUE_LIBRARY_HEADERS} DESTINATION "${HEADERS_PREFIX}")
+install(FILES ${CUE_LIBRARY_HEADERS} DESTINATION "${INCLUDE_INSTALL_DIR}")
