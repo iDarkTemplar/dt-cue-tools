@@ -54,11 +54,6 @@ endif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
 
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
 
-if (UNIX)
-	set( CMAKE_THREAD_PREFER_PTHREAD 1 )
-endif (UNIX)
-find_package (Threads REQUIRED)
-
 FIND_PACKAGE( Boost COMPONENTS regex REQUIRED )
 INCLUDE_DIRECTORIES( ${Boost_INCLUDE_DIR} )
 
