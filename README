@@ -1,0 +1,8 @@
+dt-cue-tools is a library for parsing cue sheets and a tool to split files into separate flac tracks using this information.
+
+tool requires external packages in order to split files using cue sheet files into separate flac tracks:
+	media-sound/wavpack for *.wv files
+	virtual/ffmpeg for *.wav files
+	media-sound/mac and virtual/ffmpeg for *.ape files
+
+It also needs flac and metaflac from media-libs/flac for encoding tracks to flac
