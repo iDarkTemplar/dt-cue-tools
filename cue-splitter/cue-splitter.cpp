@@ -50,72 +50,10 @@ inline bool regex_match(const std::string &str, boost::smatch &match_results, co
 #else /* USE_BOOST */
 
 #include <regex>
-#include <sstream>
+#include <experimental/optional>
 
 template <typename T>
-class optional
-{
-public:
-	optional()
-		: m_is_initialized(false)
-	{
-	}
-
-	explicit optional(const T &value)
-		: m_is_initialized(false),
-		m_value(value)
-	{
-	}
-
-	optional<T>& operator=(const optional<T> &other)
-	{
-		this->m_is_initialized = other.m_is_initialized;
-
-		if (other.m_is_initialized)
-		{
-			this->m_value = other.m_value;
-		}
-
-		return *this;
-	}
-
-	optional<T>& operator=(const T &value)
-	{
-		m_is_initialized = true;
-		m_value = value;
-
-		return *this;
-	}
-
-	operator bool() const
-	{
-		return m_is_initialized;
-	}
-
-	const T* operator->() const
-	{
-		return &m_value;
-	}
-
-	T* operator->()
-	{
-		return &m_value;
-	}
-
-	const T& operator*() const
-	{
-		return m_value;
-	}
-
-	T& operator*()
-	{
-		return m_value;
-	}
-
-private:
-	bool m_is_initialized;
-	T m_value;
-};
+using optional = std::experimental::optional<T>;
 
 using regex = std::regex;
 using smatch = std::smatch;
