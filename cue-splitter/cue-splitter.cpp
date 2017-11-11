@@ -42,7 +42,7 @@ using optional = boost::optional<T>;
 using regex = boost::regex;
 using smatch = boost::smatch;
 
-inline bool regex_match(const std::string &str, boost::smatch &match_results, const boost::regex &regex_string)
+static inline bool regex_match(const std::string &str, boost::smatch &match_results, const boost::regex &regex_string)
 {
 	return boost::regex_match(str, match_results, regex_string);
 }

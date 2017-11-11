@@ -40,7 +40,7 @@
 using regex = boost::regex;
 using smatch = boost::smatch;
 
-inline bool regex_match(const std::string &str, boost::smatch &match_results, const boost::regex &regex_string)
+static inline bool regex_match(const std::string &str, boost::smatch &match_results, const boost::regex &regex_string)
 {
 	return boost::regex_match(str, match_results, regex_string);
 }
@@ -52,7 +52,7 @@ inline bool regex_match(const std::string &str, boost::smatch &match_results, co
 using regex = std::regex;
 using smatch = std::smatch;
 
-inline bool regex_match(const std::string &str, std::smatch &match_results, const std::regex &regex_string)
+static inline bool regex_match(const std::string &str, std::smatch &match_results, const std::regex &regex_string)
 {
 	return std::regex_match(str, match_results, regex_string);
 }
