@@ -21,17 +21,111 @@
 #include <dt-cue-library.hpp>
 
 #include <list>
+#include <set>
 #include <stdexcept>
 #include <sstream>
 #include <memory>
+#include <string>
 
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 
+#if USE_BOOST
+
 #include <boost/regex.hpp>
-#include <boost/lexical_cast.hpp>
 #include <boost/optional.hpp>
+
+template <typename T>
+using optional = boost::optional<T>;
+
+using regex = boost::regex;
+using smatch = boost::smatch;
+
+inline bool regex_match(const std::string &str, boost::smatch &match_results, const boost::regex &regex_string)
+{
+	return boost::regex_match(str, match_results, regex_string);
+}
+
+#else /* USE_BOOST */
+
+#include <regex>
+#include <sstream>
+
+template <typename T>
+class optional
+{
+public:
+	optional()
+		: m_is_initialized(false)
+	{
+	}
+
+	explicit optional(const T &value)
+		: m_is_initialized(false),
+		m_value(value)
+	{
+	}
+
+	optional<T>& operator=(const optional<T> &other)
+	{
+		this->m_is_initialized = other.m_is_initialized;
+
+		if (other.m_is_initialized)
+		{
+			this->m_value = other.m_value;
+		}
+
+		return *this;
+	}
+
+	optional<T>& operator=(const T &value)
+	{
+		m_is_initialized = true;
+		m_value = value;
+
+		return *this;
+	}
+
+	operator bool() const
+	{
+		return m_is_initialized;
+	}
+
+	const T* operator->() const
+	{
+		return &m_value;
+	}
+
+	T* operator->()
+	{
+		return &m_value;
+	}
+
+	const T& operator*() const
+	{
+		return m_value;
+	}
+
+	T& operator*()
+	{
+		return m_value;
+	}
+
+private:
+	bool m_is_initialized;
+	T m_value;
+};
+
+using regex = std::regex;
+using smatch = std::smatch;
+
+inline bool regex_match(const std::string &str, std::smatch &match_results, const std::regex &regex_string)
+{
+	return std::regex_match(str, match_results, regex_string);
+}
+
+#endif /* USE_BOOST */
 
 struct track_data
 {
@@ -40,8 +134,8 @@ struct track_data
 
 	unsigned int index;
 
-	boost::optional<dtcue::time_point> start_time;
-	boost::optional<dtcue::time_point> end_time;
+	optional<dtcue::time_point> start_time;
+	optional<dtcue::time_point> end_time;
 };
 
 enum class gap_action_type
@@ -190,7 +284,7 @@ int main(int argc, char **argv)
 	bool dry_run = false;
 	gap_action_type gap_action = gap_action_type::discard;
 	char *filename = NULL;
-	boost::optional<char> separator;
+	optional<char> separator;
 
 	try
 	{
@@ -337,10 +431,10 @@ int main(int argc, char **argv)
 
 			std::string bufferstr = buffer;
 
-			boost::regex regex_flac_version(".*flac ([[:digit:]]+)\\.([[:digit:]]+)\\.[[:digit:]]+.*");
-			boost::smatch regex_results;
+			regex regex_flac_version("[.\\n]*flac ([[:digit:]]+)\\.([[:digit:]]+)\\.[[:digit:]]+[.\\n]*");
+			smatch regex_results;
 
-			if (!boost::regex_match(bufferstr, regex_results, regex_flac_version))
+			if (!regex_match(bufferstr, regex_results, regex_flac_version))
 			{
 				fprintf(stderr, "Line is: %s\n", buffer);
 				fprintf(stderr, "Couldn't query version of flac tool. Please manually specify separator with option -s<c>\n");
@@ -348,8 +442,8 @@ int main(int argc, char **argv)
 			}
 
 			unsigned int a, b;
-			a = boost::lexical_cast<unsigned int>(regex_results[1].str());
-			b = boost::lexical_cast<unsigned int>(regex_results[2].str());
+			a = std::stoul(regex_results[1].str());
+			b = std::stoul(regex_results[2].str());
 
 			// check if flac is 1.3.0 or greater
 			if ((a > 1)
@@ -396,13 +490,13 @@ int main(int argc, char **argv)
 
 					if (track->start_time)
 					{
-						unsigned int minutes = boost::lexical_cast<unsigned int>(track->start_time->minutes);
+						unsigned int minutes = std::stoul(track->start_time->minutes);
 						cmdstream << " --skip=" << minutes / 60 << ":" << minutes % 60 << ':' << track->start_time->seconds << "." << track->start_time->chunks_of_seconds;
 					}
 
 					if (track->end_time)
 					{
-						unsigned int minutes = boost::lexical_cast<unsigned int>(track->end_time->minutes);
+						unsigned int minutes = std::stoul(track->end_time->minutes);
 						cmdstream << " --until=" << minutes / 60 << ":" << minutes % 60 << ':' << track->end_time->seconds << "." << track->end_time->chunks_of_seconds;
 					}
 
@@ -439,13 +533,13 @@ int main(int argc, char **argv)
 
 					if (track->start_time)
 					{
-						unsigned int minutes = boost::lexical_cast<unsigned int>(track->start_time->minutes);
+						unsigned int minutes = std::stoul(track->start_time->minutes);
 						cmdstream << " -ss " << minutes / 60 << ":" << minutes % 60 << ':' << track->start_time->seconds << "." << track->start_time->chunks_of_seconds;
 					}
 
 					if (track->end_time)
 					{
-						unsigned int minutes = boost::lexical_cast<unsigned int>(track->end_time->minutes);
+						unsigned int minutes = std::stoul(track->end_time->minutes);
 						cmdstream << " -to " << minutes / 60 << ":" << minutes % 60 << ':' << track->end_time->seconds << "." << track->end_time->chunks_of_seconds;
 					}
 

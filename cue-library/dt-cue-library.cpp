@@ -23,17 +23,41 @@
 #include <stdexcept>
 #include <fstream>
 #include <sstream>
+#include <string>
 
 #include <utility>
 
 #include <sys/stat.h>
 
-#include <boost/regex.hpp>
-#include <boost/lexical_cast.hpp>
-
 #ifndef NDEBUG
 #include <stdio.h>
 #endif /* NDEBUG */
+
+#if USE_BOOST
+
+#include <boost/regex.hpp>
+
+using regex = boost::regex;
+using smatch = boost::smatch;
+
+inline bool regex_match(const std::string &str, boost::smatch &match_results, const boost::regex &regex_string)
+{
+	return boost::regex_match(str, match_results, regex_string);
+}
+
+#else /* USE_BOOST */
+
+#include <regex>
+
+using regex = std::regex;
+using smatch = std::smatch;
+
+inline bool regex_match(const std::string &str, std::smatch &match_results, const std::regex &regex_string)
+{
+	return std::regex_match(str, match_results, regex_string);
+}
+
+#endif /* USE_BOOST */
 
 namespace dtcue {
 
@@ -64,17 +88,17 @@ cue parse_cue_file(const std::string &filename)
 
 	cue result;
 
-	boost::regex regex_title("^[ ]*TITLE \"([^\"]*)\"[[:cntrl:]]*$");
-	boost::regex regex_performer("^[ ]*PERFORMER \"([^\"]*)\"[[:cntrl:]]*$");
-	boost::regex regex_file("^[ ]*FILE \"([^\"]*)\" [[:alnum:]]+[[:cntrl:]]*$");
-	boost::regex regex_track("^[ ]*TRACK ([[:digit:]]+) ([[:alpha:]]+)[[:cntrl:]]*$");
-	boost::regex regex_index("^[ ]*INDEX ([[:digit:]]+) ([[:digit:]]+)[:\\.,]([[:digit:]]+)[:\\.,]([[:digit:]]+)[[:cntrl:]]*$");
-	boost::regex regex_comment_quoted("^[ ]*REM ([[:alnum:]]+) \"([^\"]*)\"[[:cntrl:]]*$");
-	boost::regex regex_comment_plain("^[ ]*REM ([[:alnum:]]+) ([^[:cntrl:]]+)[[:cntrl:]]*$");
-	boost::regex regex_else_quoted("^[ ]*([[:alnum:]]+) \"([^\"]*)\"[[:cntrl:]]*$");
-	boost::regex regex_else_plain("^[ ]*([[:alnum:]]+) ([^[:cntrl:]]+)[[:cntrl:]]*$");
+	regex regex_title("^[ ]*TITLE \"([^\"]*)\"[[:cntrl:]]*$");
+	regex regex_performer("^[ ]*PERFORMER \"([^\"]*)\"[[:cntrl:]]*$");
+	regex regex_file("^[ ]*FILE \"([^\"]*)\" [[:alnum:]]+[[:cntrl:]]*$");
+	regex regex_track("^[ ]*TRACK ([[:digit:]]+) ([[:alpha:]]+)[[:cntrl:]]*$");
+	regex regex_index("^[ ]*INDEX ([[:digit:]]+) ([[:digit:]]+)[:\\.,]([[:digit:]]+)[:\\.,]([[:digit:]]+)[[:cntrl:]]*$");
+	regex regex_comment_quoted("^[ ]*REM ([[:alnum:]]+) \"([^\"]*)\"[[:cntrl:]]*$");
+	regex regex_comment_plain("^[ ]*REM ([[:alnum:]]+) ([^[:cntrl:]]+)[[:cntrl:]]*$");
+	regex regex_else_quoted("^[ ]*([[:alnum:]]+) \"([^\"]*)\"[[:cntrl:]]*$");
+	regex regex_else_plain("^[ ]*([[:alnum:]]+) ([^[:cntrl:]]+)[[:cntrl:]]*$");
 
-	boost::smatch results;
+	smatch results;
 
 	bool got_track = false;
 	bool got_filename = false;
@@ -89,7 +113,7 @@ cue parse_cue_file(const std::string &filename)
 		printf("Line: %s\n", file_line.c_str());
 #endif /* NDEBUG */
 
-		if (boost::regex_match(file_line, results, regex_title))
+		if (regex_match(file_line, results, regex_title))
 		{
 #ifndef NDEBUG
 			printf("\tGot title: %s\n", results[1].str().c_str());
@@ -97,7 +121,7 @@ cue parse_cue_file(const std::string &filename)
 
 			tags["TITLE"] = results[1].str();
 		}
-		else if (boost::regex_match(file_line, results, regex_performer))
+		else if (regex_match(file_line, results, regex_performer))
 		{
 #ifndef NDEBUG
 			printf("\tGot performer: %s\n", results[1].str().c_str());
@@ -105,7 +129,7 @@ cue parse_cue_file(const std::string &filename)
 
 			tags["PERFORMER"] = results[1].str();
 		}
-		else if (boost::regex_match(file_line, results, regex_file))
+		else if (regex_match(file_line, results, regex_file))
 		{
 #ifndef NDEBUG
 			printf("\tGot file: %s\n", results[1].str().c_str());
@@ -137,7 +161,7 @@ cue parse_cue_file(const std::string &filename)
 			obtained_file = file();
 			obtained_file.filename = results[1].str();
 		}
-		else if (boost::regex_match(file_line, results, regex_track))
+		else if (regex_match(file_line, results, regex_track))
 		{
 #ifndef NDEBUG
 			printf("\tGot track: %s, type %s\n", results[1].str().c_str(), results[2].str().c_str());
@@ -169,7 +193,7 @@ cue parse_cue_file(const std::string &filename)
 
 			got_track = true;
 			obtained_track = track();
-			track_index = boost::lexical_cast<unsigned int>(results[1].str());
+			track_index = std::stoul(results[1].str());
 
 			// NOTE: check type being AUDIO, everything else is ignored
 			if (results[2].str() == std::string("AUDIO"))
@@ -181,7 +205,7 @@ cue parse_cue_file(const std::string &filename)
 				obtained_track.type = dtcue::track_type::unknown;
 			}
 		}
-		else if (boost::regex_match(file_line, results, regex_index))
+		else if (regex_match(file_line, results, regex_index))
 		{
 #ifndef NDEBUG
 			printf("\tGot index: %s, value %s:%s:%s\n", results[1].str().c_str(), results[2].str().c_str(), results[3].str().c_str(), results[4].str().c_str());
@@ -198,9 +222,9 @@ cue parse_cue_file(const std::string &filename)
 			index.chunks_of_seconds = results[4].str();
 
 			// NOTE: check index being 00 or 01, everything else is ignored
-			obtained_track.indices[boost::lexical_cast<unsigned int>(results[1].str())] = index;
+			obtained_track.indices[std::stoul(results[1].str())] = index;
 		}
-		else if (boost::regex_match(file_line, results, regex_comment_quoted))
+		else if (regex_match(file_line, results, regex_comment_quoted))
 		{
 #ifndef NDEBUG
 			printf("\tGot comment quoted:\n\tName: %s\n\tValue: %s\n", results[1].str().c_str(), results[2].str().c_str());
@@ -208,7 +232,7 @@ cue parse_cue_file(const std::string &filename)
 
 			tags[results[1].str()] = results[2].str();
 		}
-		else if (boost::regex_match(file_line, results, regex_comment_plain))
+		else if (regex_match(file_line, results, regex_comment_plain))
 		{
 #ifndef NDEBUG
 			printf("\tGot comment:\n\tName: %s\n\tValue: %s\n", results[1].str().c_str(), results[2].str().c_str());
@@ -216,7 +240,7 @@ cue parse_cue_file(const std::string &filename)
 
 			tags[results[1].str()] = results[2].str();
 		}
-		else if (boost::regex_match(file_line, results, regex_else_quoted))
+		else if (regex_match(file_line, results, regex_else_quoted))
 		{
 #ifndef NDEBUG
 			printf("\tGot something else with quotes:\n\tName: %s\n\tValue: %s\n", results[1].str().c_str(), results[2].str().c_str());
@@ -224,7 +248,7 @@ cue parse_cue_file(const std::string &filename)
 
 			tags[results[1].str()] = results[2].str();
 		}
-		else if (boost::regex_match(file_line, results, regex_else_plain))
+		else if (regex_match(file_line, results, regex_else_plain))
 		{
 #ifndef NDEBUG
 			printf("\tGot something else:\n\tName: %s\n\tValue: %s\n", results[1].str().c_str(), results[2].str().c_str());

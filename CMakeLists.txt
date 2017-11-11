@@ -4,7 +4,7 @@ cmake_minimum_required( VERSION 2.8.8 )
 
 set(DTCT_VERSION_MAJOR 0)
 set(DTCT_VERSION_MINOR 1)
-set(DTCT_VERSION_PATCH 4)
+set(DTCT_VERSION_PATCH 5)
 set(DTCT_VERSION "${DTCT_VERSION_MAJOR}.${DTCT_VERSION_MINOR}.${DTCT_VERSION_PATCH}")
 
 set(CPACK_PACKAGE_VERSION_MAJOR ${DTCT_VERSION_MAJOR})
@@ -29,6 +29,7 @@ set(DATA_PREFIX "${CMAKE_INSTALL_PREFIX}/share" CACHE PATH "Prefix prepended to 
 
 option(ENABLE_LIBVERSION "enable libraries versioning" ON)
 option(ENABLE_SPLIT_TOOL "enable split tool" ON)
+option(USE_BOOST "use boost components instead of std or custom ones" OFF)
 
 message(STATUS "System: ${CMAKE_SYSTEM_NAME}" )
 
@@ -54,8 +55,14 @@ endif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
 
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
 
-FIND_PACKAGE( Boost COMPONENTS regex REQUIRED )
-INCLUDE_DIRECTORIES( ${Boost_INCLUDE_DIR} )
+if (USE_BOOST)
+	FIND_PACKAGE( Boost COMPONENTS regex REQUIRED )
+	INCLUDE_DIRECTORIES( ${Boost_INCLUDE_DIR} )
+	add_definitions(-DUSE_BOOST=1)
+	set (EXTRA_LIBS ${Boost_LIBRARIES})
+else (USE_BOOST)
+	set (EXTRA_LIBS)
+endif (USE_BOOST)
 
 add_definitions(-D_FILE_OFFSET_BITS=64)
 include_directories( ${CMAKE_CURRENT_SOURCE_DIR} )
@@ -71,24 +78,12 @@ add_library( dt-cue-parser SHARED ${CUE_LIBRARY_SOURCES} ${CUE_LIBRARY_HEADERS} 
 if (ENABLE_LIBVERSION)
 	set_target_properties( dt-cue-parser PROPERTIES VERSION ${DTCT_VERSION} SOVERSION ${DTCT_VERSION_MAJOR} )
 endif (ENABLE_LIBVERSION)
-target_link_libraries( dt-cue-parser ${Boost_LIBRARIES} )
+target_link_libraries( dt-cue-parser ${EXTRA_LIBS} )
 
 if (ENABLE_SPLIT_TOOL)
 	add_executable( dt-cue-split ${CUE_APP_SOURCES} ${CUE_APP_HEADERS})
-	target_link_libraries( dt-cue-split dt-cue-parser ${Boost_LIBRARIES} )
+	target_link_libraries( dt-cue-split dt-cue-parser ${EXTRA_LIBS} )
 endif (ENABLE_SPLIT_TOOL)
-
-#ENABLE_TESTING()
-
-#set (TEST_SOURCES_commands tests/commands_test.c tests/dt_tests.h)
-#set (TEST_LIBS_commands dtmd-misc)
-
-#set (ALL_TESTS commands decode_label filesystem_opts)
-#foreach (CURRENT_TEST ${ALL_TESTS})
-#	add_executable( ${CURRENT_TEST}_test ${TEST_SOURCES_${CURRENT_TEST}})
-#	target_link_libraries( ${CURRENT_TEST}_test ${TEST_LIBS_${CURRENT_TEST}} )
-#	add_test( ${CURRENT_TEST}_test ${CMAKE_CURRENT_BINARY_DIR}/${CURRENT_TEST}_test )
-#endforeach (CURRENT_TEST)
 
 # installation config
 install(TARGETS dt-cue-parser LIBRARY DESTINATION ${LIB_INSTALL_DIR} )
