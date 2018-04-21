@@ -84,6 +84,27 @@ enum class gap_action_type
 	append_prepend_first
 };
 
+std::string escape_single_quote(const std::string &input)
+{
+	std::string result = input;
+
+	size_t idx = result.rfind('\'');
+
+	while (idx != std::string::npos)
+	{
+		result.replace(idx, 1, "\'\\\'\'");
+
+		if (idx == 0)
+		{
+			break;
+		}
+
+		idx = result.rfind('\'', idx - 1);
+	}
+
+	return result;
+}
+
 void rename_tag(std::map<std::string, std::string> &tags, const std::string &oldname, const std::string &newname)
 {
 	auto tag_old = tags.find(oldname);
@@ -420,7 +441,7 @@ int main(int argc, char **argv)
 						cmdstream << " --until=" << track->end_time->minutes << ':' << track->end_time->seconds << *separator << track->end_time->chunks_of_seconds;
 					}
 
-					cmdstream << " -o \"_track_" << track->index << ".wav\" \"" << track->filename << "\"";
+					cmdstream << " -o \'_track_" << track->index << ".wav\' \'" << escape_single_quote(track->filename) << "\'";
 				}
 				else if (track->filename.rfind(".wv") == track->filename.length() - strlen(".wv"))
 				{
@@ -438,7 +459,7 @@ int main(int argc, char **argv)
 						cmdstream << " --until=" << minutes / 60 << ":" << minutes % 60 << ':' << track->end_time->seconds << "." << track->end_time->chunks_of_seconds;
 					}
 
-					cmdstream << " -o \"_track_" << track->index << ".wav\" \"" << track->filename << "\"";
+					cmdstream << " -o \'_track_" << track->index << ".wav\' \'" << escape_single_quote(track->filename) << "\'";
 				}
 				else if ((track->filename.rfind(".ape") == track->filename.length() - strlen(".ape"))
 					|| (track->filename.rfind(".wav") == track->filename.length() - strlen(".wav")))
@@ -450,13 +471,13 @@ int main(int argc, char **argv)
 						track_filename = track->filename;
 						track_filename.replace(track_filename.rfind(".ape"), std::string::npos, ".wav");
 
-						cmdstream << "mac \"" << track->filename << "\" \"" << track_filename << "\" -d";
+						cmdstream << "mac \'" << escape_single_quote(track->filename) << "\' \'" << escape_single_quote(track_filename) << "\' -d";
 
 						init_commands.insert(cmdstream.str());
 
 						cmdstream.str(std::string());
 
-						cmdstream << "rm \"" << track_filename << "\"";
+						cmdstream << "rm \'" << escape_single_quote(track_filename) << "\'";
 
 						deinit_commands.insert(cmdstream.str());
 
@@ -467,7 +488,7 @@ int main(int argc, char **argv)
 						track_filename = track->filename;
 					}
 
-					cmdstream << "ffmpeg -i \"" << track_filename << "\"";
+					cmdstream << "ffmpeg -i \'" << escape_single_quote(track_filename) << "\'";
 
 					if (track->start_time)
 					{
@@ -481,7 +502,7 @@ int main(int argc, char **argv)
 						cmdstream << " -to " << minutes / 60 << ":" << minutes % 60 << ':' << track->end_time->seconds << "." << track->end_time->chunks_of_seconds;
 					}
 
-					cmdstream << " -acodec copy \"_track_" << track->index << ".wav\"";
+					cmdstream << " -acodec copy \'_track_" << track->index << ".wav\'";
 				}
 				else
 				{
@@ -492,13 +513,13 @@ int main(int argc, char **argv)
 
 				cmdstream.str(std::string());
 
-				cmdstream << "flac -8 -F --no-lax \"_track_" << track->index << ".wav\"";
+				cmdstream << "flac -8 -F --no-lax \'_track_" << track->index << ".wav\'";
 
 				commands.push_back(cmdstream.str());
 
 				cmdstream.str(std::string());
 
-				cmdstream << "rm \"_track_" << track->index << ".wav\"";
+				cmdstream << "rm \'_track_" << track->index << ".wav\'";
 
 				commands.push_back(cmdstream.str());
 
@@ -518,7 +539,7 @@ int main(int argc, char **argv)
 					auto tag = track->tags.find(*searched);
 					if (tag != track->tags.end())
 					{
-						cmdstream << " --set-tag=\"" << tag->first << "=" << tag->second << "\"";
+						cmdstream << " --set-tag=\'" << escape_single_quote(tag->first) << "=" << escape_single_quote(tag->second) << "\'";
 					}
 				}
 
@@ -526,11 +547,11 @@ int main(int argc, char **argv)
 				{
 					if (std::find(preferred_tags.begin(), preferred_tags.end(), tag->first) == preferred_tags.end())
 					{
-						cmdstream << " --set-tag=\"" << tag->first << "=" << tag->second << "\"";
+						cmdstream << " --set-tag=\'" << escape_single_quote(tag->first) << "=" << escape_single_quote(tag->second) << "\'";
 					}
 				}
 
-				cmdstream << " \"_track_" << track->index << ".flac\"";
+				cmdstream << " \'_track_" << track->index << ".flac\'";
 
 				commands.push_back(cmdstream.str());
 
@@ -538,7 +559,7 @@ int main(int argc, char **argv)
 				if (tag != track->tags.end())
 				{
 					cmdstream.str(std::string());
-					cmdstream << "mv \"_track_" << track->index << ".flac\" \"" << track->index << " - " << tag->second << ".flac\"";
+					cmdstream << "mv \'_track_" << track->index << ".flac\' \'" << track->index << " - " << escape_single_quote(tag->second) << ".flac\'";
 					commands.push_back(cmdstream.str());
 				}
 			}
