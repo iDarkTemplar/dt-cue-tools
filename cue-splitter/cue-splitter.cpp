@@ -31,16 +31,10 @@
 #include <string.h>
 #include <stdlib.h>
 
+#include "cue-types.hpp"
+#include "cue-action.hpp"
+
 #if USE_BOOST
-
-#include <boost/regex.hpp>
-#include <boost/optional.hpp>
-
-template <typename T>
-using optional = boost::optional<T>;
-
-using regex = boost::regex;
-using smatch = boost::smatch;
 
 static inline bool regex_match(const std::string &str, boost::smatch &match_results, const boost::regex &regex_string)
 {
@@ -48,15 +42,6 @@ static inline bool regex_match(const std::string &str, boost::smatch &match_resu
 }
 
 #else /* USE_BOOST */
-
-#include <regex>
-#include <experimental/optional>
-
-template <typename T>
-using optional = std::experimental::optional<T>;
-
-using regex = std::regex;
-using smatch = std::smatch;
 
 inline bool regex_match(const std::string &str, std::smatch &match_results, const std::regex &regex_string)
 {
@@ -417,12 +402,12 @@ int main(int argc, char **argv)
 			}
 		}
 
-		std::list<std::list<std::string> > commands_list;
+		std::list<std::list<std::shared_ptr<dtcue::command> > > commands_list;
 		std::set<std::string> init_commands, deinit_commands;
 
 		for (auto track = tracks.begin(); track != tracks.end(); ++track)
 		{
-			std::list<std::string> commands;
+			std::list<std::shared_ptr<dtcue::command> > commands;
 
 			{
 				std::stringstream cmdstream;
@@ -509,19 +494,19 @@ int main(int argc, char **argv)
 					continue;
 				}
 
-				commands.push_back(cmdstream.str());
+				commands.push_back(std::make_shared<dtcue::external_command>(cmdstream.str()));
 
 				cmdstream.str(std::string());
 
 				cmdstream << "flac -8 -F --no-lax \'_track_" << track->index << ".wav\'";
 
-				commands.push_back(cmdstream.str());
+				commands.push_back(std::make_shared<dtcue::external_command>(cmdstream.str()));
 
 				cmdstream.str(std::string());
 
 				cmdstream << "rm \'_track_" << track->index << ".wav\'";
 
-				commands.push_back(cmdstream.str());
+				commands.push_back(std::make_shared<dtcue::external_command>(cmdstream.str()));
 
 				cmdstream.str(std::string());
 
@@ -553,14 +538,14 @@ int main(int argc, char **argv)
 
 				cmdstream << " \'_track_" << track->index << ".flac\'";
 
-				commands.push_back(cmdstream.str());
+				commands.push_back(std::make_shared<dtcue::external_command>(cmdstream.str()));
 
 				auto tag = track->tags.find("TITLE");
 				if (tag != track->tags.end())
 				{
 					cmdstream.str(std::string());
 					cmdstream << "mv \'_track_" << track->index << ".flac\' \'" << track->index << " - " << escape_single_quote(tag->second) << ".flac\'";
-					commands.push_back(cmdstream.str());
+					commands.push_back(std::make_shared<dtcue::external_command>(cmdstream.str()));
 				}
 			}
 
@@ -586,12 +571,12 @@ int main(int argc, char **argv)
 			{
 				if (verbose)
 				{
-					printf("%s\n", command->c_str());
+					printf("%s\n", (*command)->print().c_str());
 				}
 
 				if (!dry_run)
 				{
-					system(command->c_str());
+					(*command)->run();
 				}
 			}
 		}

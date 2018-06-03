@@ -71,8 +71,8 @@ include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/cue-library )
 set ( CUE_LIBRARY_SOURCES cue-library/dt-cue-library.cpp )
 set ( CUE_LIBRARY_HEADERS cue-library/dt-cue-library.hpp )
 
-set ( CUE_APP_SOURCES cue-splitter/cue-splitter.cpp )
-set ( CUE_APP_HEADERS )
+set ( CUE_APP_SOURCES cue-splitter/cue-splitter.cpp cue-splitter/cue-action.cpp)
+set ( CUE_APP_HEADERS cue-splitter/cue-types.hpp    cue-splitter/cue-action.hpp)
 
 add_library( dt-cue-parser SHARED ${CUE_LIBRARY_SOURCES} ${CUE_LIBRARY_HEADERS} )
 if (ENABLE_LIBVERSION)
