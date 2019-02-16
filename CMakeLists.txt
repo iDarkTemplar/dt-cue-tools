@@ -7,17 +7,6 @@ set(DTCT_VERSION_MINOR 2)
 set(DTCT_VERSION_PATCH 0)
 set(DTCT_VERSION "${DTCT_VERSION_MAJOR}.${DTCT_VERSION_MINOR}.${DTCT_VERSION_PATCH}")
 
-set(CPACK_PACKAGE_VERSION_MAJOR ${DTCT_VERSION_MAJOR})
-set(CPACK_PACKAGE_VERSION_MINOR ${DTCT_VERSION_MINOR})
-set(CPACK_PACKAGE_VERSION_PATCH ${DTCT_VERSION_PATCH})
-set(CPACK_GENERATOR "TBZ2")
-set(CPACK_SOURCE_GENERATOR "TBZ2")
-set(CPACK_SOURCE_IGNORE_FILES
-	".git;build;CMakeLists.txt.user;CMakeLists.txt.user.*;ignore;TODO;cppcheck-linux.sh")
-set(CPACK_SOURCE_PACKAGE_FILE_NAME "${CMAKE_PROJECT_NAME}-${DTCT_VERSION}")
-# MUST be after CPACK_* variables.
-include(CPack)
-
 # installation directory configuration
 set(LIB_SUFFIX "" CACHE STRING "Define suffix of directory name (32/64)")
 set(EXEC_INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX} CACHE PATH "Installation prefix for executables and object code libraries" FORCE)
