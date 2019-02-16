@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018 i.Dark_Templar <darktemplar@dark-templar-archives.net>
+ * Copyright (C) 2018-2019 i.Dark_Templar <darktemplar@dark-templar-archives.net>
  *
  * This file is part of DT Cue Tools.
  *
