@@ -428,7 +428,7 @@ int main(int argc, char **argv)
 		}
 
 		std::list<std::list<std::shared_ptr<dtcue::command> > > commands_list;
-		std::set<std::string> init_commands, deinit_commands;
+		std::set<std::shared_ptr<dtcue::command>, dtcue::command_comparator> init_commands, deinit_commands;
 
 		for (auto track = tracks.begin(); track != tracks.end(); ++track)
 		{
@@ -485,13 +485,13 @@ int main(int argc, char **argv)
 
 						cmdstream << "mac \'" << escape_single_quote(track->filename) << "\' \'" << escape_single_quote(track_filename) << "\' -d";
 
-						init_commands.insert(cmdstream.str());
+						init_commands.insert(std::make_shared<dtcue::external_command>(cmdstream.str()));
 
 						cmdstream.str(std::string());
 
 						cmdstream << "rm \'" << escape_single_quote(track_filename) << "\'";
 
-						deinit_commands.insert(cmdstream.str());
+						deinit_commands.insert(std::make_shared<dtcue::external_command>(cmdstream.str()));
 
 						cmdstream.str(std::string());
 					}
@@ -583,12 +583,15 @@ int main(int argc, char **argv)
 		{
 			if (verbose)
 			{
-				printf("%s\n", command->c_str());
+				printf("%s\n", (*command)->print().c_str());
 			}
 
 			if (!dry_run)
 			{
-				system(command->c_str());
+				if (!(*command)->run())
+				{
+					fprintf(stderr, "Action failed: %s\n", (*command)->print().c_str());
+				}
 			}
 		}
 
@@ -615,12 +618,15 @@ int main(int argc, char **argv)
 		{
 			if (verbose)
 			{
-				printf("%s\n", command->c_str());
+				printf("%s\n", (*command)->print().c_str());
 			}
 
 			if (!dry_run)
 			{
-				system(command->c_str());
+				if (!(*command)->run())
+				{
+					fprintf(stderr, "Action failed: %s\n", (*command)->print().c_str());
+				}
 			}
 		}
 	}

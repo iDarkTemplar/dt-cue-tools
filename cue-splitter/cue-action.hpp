@@ -22,12 +22,15 @@
 #define DT_CUE_ACTION_HPP
 
 #include <string>
+#include <memory>
 
 #include <dt-cue-library.hpp>
 
 #include "cue-types.hpp"
 
 namespace dtcue {
+
+struct command_comparator;
 
 class command
 {
@@ -36,6 +39,17 @@ public:
 
 	virtual bool run() const = 0;
 	virtual std::string print() const = 0;
+
+protected:
+	// compare with instance of same class only
+	virtual bool compare(const command &other) const = 0;
+
+	friend class command_comparator;
+};
+
+struct command_comparator: public std::binary_function<std::shared_ptr<command>, std::shared_ptr<command>, bool>
+{
+	bool operator() (const std::shared_ptr<command> &x, const std::shared_ptr<command> &y) const;
 };
 
 class external_command: public command
@@ -45,6 +59,9 @@ public:
 
 	virtual bool run() const;
 	virtual std::string print() const;
+
+protected:
+	virtual bool compare(const command &other) const;
 
 private:
 	std::string m_command_string;
