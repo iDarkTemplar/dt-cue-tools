@@ -576,7 +576,10 @@ int main(int argc, char **argv)
 
 				if (!dry_run)
 				{
-					(*command)->run();
+					if (!(*command)->run())
+					{
+						fprintf(stderr, "Action failed: %s\n", (*command)->print().c_str());
+					}
 				}
 			}
 		}

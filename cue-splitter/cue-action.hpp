@@ -34,16 +34,16 @@ class command
 public:
 	virtual ~command() = default;
 
-	virtual void run() const = 0;
+	virtual bool run() const = 0;
 	virtual std::string print() const = 0;
 };
 
 class external_command: public command
 {
 public:
-	external_command(const std::string &command_string);
+	explicit external_command(const std::string &command_string);
 
-	virtual void run() const;
+	virtual bool run() const;
 	virtual std::string print() const;
 
 private:

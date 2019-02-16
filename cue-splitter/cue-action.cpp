@@ -30,9 +30,11 @@ external_command::external_command(const std::string &command_string)
 {
 }
 
-void external_command::run() const
+bool external_command::run() const
 {
 	system(m_command_string.c_str());
+
+	return true;
 }
 
 std::string external_command::print() const
