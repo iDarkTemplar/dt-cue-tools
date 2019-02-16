@@ -219,7 +219,7 @@ cue parse_cue_file(const std::string &filename)
 			time_point index;
 			index.minutes = results[2].str();
 			index.seconds = results[3].str();
-			index.chunks_of_seconds = results[4].str();
+			index.frames = results[4].str();
 
 			// NOTE: check index being 00 or 01, everything else is ignored
 			obtained_track.indices[std::stoul(results[1].str())] = index;

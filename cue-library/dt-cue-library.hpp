@@ -37,7 +37,7 @@ struct time_point
 {
 	std::string minutes;
 	std::string seconds;
-	std::string chunks_of_seconds;
+	std::string frames;
 };
 
 struct track

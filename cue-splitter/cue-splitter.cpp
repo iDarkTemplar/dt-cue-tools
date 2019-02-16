@@ -24,6 +24,7 @@
 #include <set>
 #include <stdexcept>
 #include <sstream>
+#include <iomanip>
 #include <memory>
 #include <string>
 
@@ -217,6 +218,42 @@ std::list<track_data> convert_cue_to_tracks(const dtcue::cue &cue, gap_action_ty
 	return result;
 }
 
+std::string convert_frames_to_time(const std::string &frames)
+{
+	if ((frames.length() == 0) || (frames.length() > 2))
+	{
+		return std::string();
+	}
+
+	unsigned long value = std::stoul(frames);
+	if (value >= 75)
+	{
+		return std::string();
+	}
+
+	value = (value * 1000000) / 75;
+
+	std::stringstream stringvalue;
+	stringvalue << std::setfill('0') << std::setw(6) << value;
+	return stringvalue.str();
+}
+
+bool convert_and_save_frames(std::map<std::string, std::string> map, const std::string &frames)
+{
+	if (map.find(frames) == map.end())
+	{
+		std::string value = convert_frames_to_time(frames);
+		if (value.empty())
+		{
+			return false;
+		}
+
+		map[frames] = value;
+	}
+
+	return true;
+}
+
 void print_usage(const char *name)
 {
 	fprintf(stderr, "USAGE: %s [-v|--verbose] [-n|--dry-run] [--gap-discard|--gap-prepend|--gap-append|--gap-append2] cuesheet\n", name);
@@ -228,6 +265,8 @@ int main(int argc, char **argv)
 	bool dry_run = false;
 	gap_action_type gap_action = gap_action_type::discard;
 	char *filename = NULL;
+
+	std::map<std::string, std::string> frames_to_seconds_map;
 
 	try
 	{
@@ -278,6 +317,24 @@ int main(int argc, char **argv)
 
 		dtcue::cue cuesheet = dtcue::parse_cue_file(filename);
 
+		// convert frames to time, from 1/75 to 1/1000000, and save these values to map
+		{
+			for (auto file = cuesheet.files.begin(); file != cuesheet.files.end(); ++file)
+			{
+				for (auto track = file->tracks.begin(); track != file->tracks.end(); ++track)
+				{
+					for (auto index = track->second.indices.begin(); index != track->second.indices.end(); ++index)
+					{
+						if (!convert_and_save_frames(frames_to_seconds_map, index->second.frames))
+						{
+							fprintf(stderr, "Failed to convert frames for file %s, track %u, index %u: value is %s\n", file->filename.c_str(), track->first, index->first, index->second.frames.c_str());
+							return -1;
+						}
+					}
+				}
+			}
+		}
+
 		if (verbose)
 		{
 			printf("\nGlobal tags:\n");
@@ -299,7 +356,7 @@ int main(int argc, char **argv)
 
 					for (auto index = track->second.indices.begin(); index != track->second.indices.end(); ++index)
 					{
-						printf("\t\t\tINDEX %02d: %s:%s:%s\n", index->first, index->second.minutes.c_str(), index->second.seconds.c_str(), index->second.chunks_of_seconds.c_str());
+						printf("\t\t\tINDEX %02d: %s:%s.%s\n", index->first, index->second.minutes.c_str(), index->second.seconds.c_str(), frames_to_seconds_map[index->second.frames].c_str());
 					}
 
 					for (auto tag = track->second.tags.begin(); tag != track->second.tags.end(); ++tag)
@@ -314,6 +371,30 @@ int main(int argc, char **argv)
 
 		std::list<track_data> tracks = convert_cue_to_tracks(cuesheet, gap_action);
 
+		// convert frames to time, from 1/75 to 1/1000000, and save these values to map
+		{
+			for (auto track = tracks.begin(); track != tracks.end(); ++track)
+			{
+				if (track->start_time)
+				{
+					if (!convert_and_save_frames(frames_to_seconds_map, track->start_time->frames))
+					{
+						fprintf(stderr, "Failed to convert frames for file %s, track %u, start time: value is %s\n", track->filename.c_str(), track->index, track->start_time->frames.c_str());
+						return -1;
+					}
+				}
+
+				if (track->end_time)
+				{
+					if (!convert_and_save_frames(frames_to_seconds_map, track->end_time->frames))
+					{
+						fprintf(stderr, "Failed to convert frames for file %s, track %u, end time: value is %s\n", track->filename.c_str(), track->index, track->end_time->frames.c_str());
+						return -1;
+					}
+				}
+			}
+		}
+
 		if (verbose)
 		{
 			for (auto track = tracks.begin(); track != tracks.end(); ++track)
@@ -323,7 +404,7 @@ int main(int argc, char **argv)
 
 				if (track->start_time)
 				{
-					printf("Start: %s:%s:%s\n", track->start_time->minutes.c_str(), track->start_time->seconds.c_str(), track->start_time->chunks_of_seconds.c_str());
+					printf("Start: %s:%s.%s\n", track->start_time->minutes.c_str(), track->start_time->seconds.c_str(), frames_to_seconds_map[track->start_time->frames].c_str());
 				}
 				else
 				{
@@ -332,7 +413,7 @@ int main(int argc, char **argv)
 
 				if (track->end_time)
 				{
-					printf("End:   %s:%s:%s\n", track->end_time->minutes.c_str(), track->end_time->seconds.c_str(), track->end_time->chunks_of_seconds.c_str());
+					printf("End:   %s:%s.%s\n", track->end_time->minutes.c_str(), track->end_time->seconds.c_str(), frames_to_seconds_map[track->end_time->frames].c_str());
 				}
 				else
 				{
@@ -364,12 +445,12 @@ int main(int argc, char **argv)
 
 					if (track->start_time)
 					{
-						cmdstream << " --skip=" << track->start_time->minutes << ':' << track->start_time->seconds << '.' << track->start_time->chunks_of_seconds;
+						cmdstream << " --skip=" << track->start_time->minutes << ':' << track->start_time->seconds << '.' << frames_to_seconds_map[track->start_time->frames];
 					}
 
 					if (track->end_time)
 					{
-						cmdstream << " --until=" << track->end_time->minutes << ':' << track->end_time->seconds << '.' << track->end_time->chunks_of_seconds;
+						cmdstream << " --until=" << track->end_time->minutes << ':' << track->end_time->seconds << '.' << frames_to_seconds_map[track->end_time->frames];
 					}
 
 					cmdstream << " -o \'_track_" << track->index << ".wav\' \'" << escape_single_quote(track->filename) << "\'";
@@ -381,13 +462,13 @@ int main(int argc, char **argv)
 					if (track->start_time)
 					{
 						unsigned int minutes = std::stoul(track->start_time->minutes);
-						cmdstream << " --skip=" << minutes / 60 << ":" << minutes % 60 << ':' << track->start_time->seconds << "." << track->start_time->chunks_of_seconds;
+						cmdstream << " --skip=" << minutes / 60 << ":" << minutes % 60 << ':' << track->start_time->seconds << "." << frames_to_seconds_map[track->start_time->frames];
 					}
 
 					if (track->end_time)
 					{
 						unsigned int minutes = std::stoul(track->end_time->minutes);
-						cmdstream << " --until=" << minutes / 60 << ":" << minutes % 60 << ':' << track->end_time->seconds << "." << track->end_time->chunks_of_seconds;
+						cmdstream << " --until=" << minutes / 60 << ":" << minutes % 60 << ':' << track->end_time->seconds << "." << frames_to_seconds_map[track->end_time->frames];
 					}
 
 					cmdstream << " -o \'_track_" << track->index << ".wav\' \'" << escape_single_quote(track->filename) << "\'";
@@ -424,13 +505,13 @@ int main(int argc, char **argv)
 					if (track->start_time)
 					{
 						unsigned int minutes = std::stoul(track->start_time->minutes);
-						cmdstream << " -ss " << minutes / 60 << ":" << minutes % 60 << ':' << track->start_time->seconds << "." << track->start_time->chunks_of_seconds;
+						cmdstream << " -ss " << minutes / 60 << ":" << minutes % 60 << ':' << track->start_time->seconds << "." << frames_to_seconds_map[track->start_time->frames];
 					}
 
 					if (track->end_time)
 					{
 						unsigned int minutes = std::stoul(track->end_time->minutes);
-						cmdstream << " -to " << minutes / 60 << ":" << minutes % 60 << ':' << track->end_time->seconds << "." << track->end_time->chunks_of_seconds;
+						cmdstream << " -to " << minutes / 60 << ":" << minutes % 60 << ':' << track->end_time->seconds << "." << frames_to_seconds_map[track->end_time->frames];
 					}
 
 					cmdstream << " -acodec copy \'_track_" << track->index << ".wav\'";
