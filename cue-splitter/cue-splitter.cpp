@@ -67,7 +67,7 @@ enum class gap_action_type
 	discard,
 	prepend,
 	append,
-	append_prepend_first
+	prepend_first_then_append
 };
 
 std::string escape_single_quote(const std::string &input)
@@ -162,7 +162,7 @@ std::list<track_data> convert_cue_to_tracks(const dtcue::cue &cue, gap_action_ty
 				}
 				break;
 
-			case gap_action_type::append_prepend_first:
+			case gap_action_type::prepend_first_then_append:
 				if ((data.index == 1) && (index0 != track->second.indices.end()))
 				{
 					data.start_time = index0->second;
@@ -192,7 +192,7 @@ std::list<track_data> convert_cue_to_tracks(const dtcue::cue &cue, gap_action_ty
 
 				switch (gap_action)
 				{
-				case gap_action_type::append_prepend_first:
+				case gap_action_type::prepend_first_then_append:
 				case gap_action_type::append:
 					data.end_time = index1_next->second;
 					break;
@@ -256,7 +256,7 @@ bool convert_and_save_frames(std::map<std::string, std::string> map, const std::
 
 void print_usage(const char *name)
 {
-	fprintf(stderr, "USAGE: %s [-v|--verbose] [-n|--dry-run] [--gap-discard|--gap-prepend|--gap-append|--gap-append2] cuesheet\n", name);
+	fprintf(stderr, "USAGE: %s [-v|--verbose] [-n|--dry-run] [--gap-discard|--gap-prepend|--gap-append|--gap-prepend-first-then-append] cuesheet\n", name);
 }
 
 int main(int argc, char **argv)
@@ -294,9 +294,9 @@ int main(int argc, char **argv)
 			{
 				gap_action = gap_action_type::append;
 			}
-			else if (strcmp(argv[i], "--gap-append2") == 0)
+			else if (strcmp(argv[i], "--gap-prepend-first-then-append") == 0)
 			{
-				gap_action = gap_action_type::append_prepend_first;
+				gap_action = gap_action_type::prepend_first_then_append;
 			}
 			else if (filename == NULL)
 			{
