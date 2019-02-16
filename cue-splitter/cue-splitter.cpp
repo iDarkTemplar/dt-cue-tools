@@ -238,7 +238,7 @@ std::string convert_frames_to_time(const std::string &frames)
 	return stringvalue.str();
 }
 
-bool convert_and_save_frames(std::map<std::string, std::string> map, const std::string &frames)
+bool convert_and_save_frames(std::map<std::string, std::string> &map, const std::string &frames)
 {
 	if (map.find(frames) == map.end())
 	{
