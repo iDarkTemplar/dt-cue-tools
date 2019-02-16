@@ -219,7 +219,7 @@ std::list<track_data> convert_cue_to_tracks(const dtcue::cue &cue, gap_action_ty
 
 void print_usage(const char *name)
 {
-	fprintf(stderr, "USAGE: %s [-v|--verbose] [-n|--dry-run] [--gap-discard|--gap-prepend|--gap-append|--gap-append2] [-s<c>] cuesheet\n", name);
+	fprintf(stderr, "USAGE: %s [-v|--verbose] [-n|--dry-run] [--gap-discard|--gap-prepend|--gap-append|--gap-append2] cuesheet\n", name);
 }
 
 int main(int argc, char **argv)
@@ -228,7 +228,6 @@ int main(int argc, char **argv)
 	bool dry_run = false;
 	gap_action_type gap_action = gap_action_type::discard;
 	char *filename = NULL;
-	optional<char> separator;
 
 	try
 	{
@@ -259,10 +258,6 @@ int main(int argc, char **argv)
 			else if (strcmp(argv[i], "--gap-append2") == 0)
 			{
 				gap_action = gap_action_type::append_prepend_first;
-			}
-			else if ((strncmp(argv[i], "-s", 2) == 0) && (strlen(argv[i]) == 3))
-			{
-				separator = argv[i][2];
 			}
 			else if (filename == NULL)
 			{
@@ -351,57 +346,6 @@ int main(int argc, char **argv)
 			}
 		}
 
-		if (!separator)
-		{
-			std::unique_ptr<FILE, int (*)(FILE*)> version_file(popen("flac --version", "r"), &fclose);
-			if (!version_file)
-			{
-				fprintf(stderr, "Can't open piped child process\n");
-				return -1;
-			}
-
-			char *buffer = NULL;
-			size_t bufsize = 0;
-			ssize_t result;
-
-			result = getline(&buffer, &bufsize, version_file.get());
-			std::unique_ptr<char, void (*)(void*)> managed_buffer(buffer, &free);
-
-			if ((result < 0) || (buffer == NULL))
-			{
-				fprintf(stderr, "Error in function getline\n");
-				return -1;
-			}
-
-			std::string bufferstr = buffer;
-
-			regex regex_flac_version("[.\\n]*flac ([[:digit:]]+)\\.([[:digit:]]+)\\.[[:digit:]]+[.\\n]*");
-			smatch regex_results;
-
-			if (!regex_match(bufferstr, regex_results, regex_flac_version))
-			{
-				fprintf(stderr, "Line is: %s\n", buffer);
-				fprintf(stderr, "Couldn't query version of flac tool. Please manually specify separator with option -s<c>\n");
-				return -1;
-			}
-
-			unsigned int a, b;
-			a = std::stoul(regex_results[1].str());
-			b = std::stoul(regex_results[2].str());
-
-			// check if flac is 1.3.0 or greater
-			if ((a > 1)
-				|| ((a == 1)
-					&& (b >= 3)))
-			{
-				separator = ',';
-			}
-			else
-			{
-				separator = '.';
-			}
-		}
-
 		std::list<std::list<std::shared_ptr<dtcue::command> > > commands_list;
 		std::set<std::string> init_commands, deinit_commands;
 
@@ -414,16 +358,18 @@ int main(int argc, char **argv)
 
 				if (track->filename.rfind(".flac") == track->filename.length() - strlen(".flac"))
 				{
+					// use "C" locale in order to always use '.' as separator
+					cmdstream << "LC_ALL=C ";
 					cmdstream << "flac -d -F";
 
 					if (track->start_time)
 					{
-						cmdstream << " --skip=" << track->start_time->minutes << ':' << track->start_time->seconds << *separator << track->start_time->chunks_of_seconds;
+						cmdstream << " --skip=" << track->start_time->minutes << ':' << track->start_time->seconds << '.' << track->start_time->chunks_of_seconds;
 					}
 
 					if (track->end_time)
 					{
-						cmdstream << " --until=" << track->end_time->minutes << ':' << track->end_time->seconds << *separator << track->end_time->chunks_of_seconds;
+						cmdstream << " --until=" << track->end_time->minutes << ':' << track->end_time->seconds << '.' << track->end_time->chunks_of_seconds;
 					}
 
 					cmdstream << " -o \'_track_" << track->index << ".wav\' \'" << escape_single_quote(track->filename) << "\'";
