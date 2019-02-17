@@ -474,6 +474,7 @@ int main(int argc, char **argv)
 					cmdstream << " -o \'_track_" << track->index << ".wav\' \'" << escape_single_quote(track->filename) << "\'";
 				}
 				else if ((track->filename.rfind(".ape") == track->filename.length() - strlen(".ape"))
+					|| (track->filename.rfind(".m4a") == track->filename.length() - strlen(".m4a"))
 					|| (track->filename.rfind(".wav") == track->filename.length() - strlen(".wav")))
 				{
 					std::string track_filename;
@@ -484,6 +485,23 @@ int main(int argc, char **argv)
 						track_filename.replace(track_filename.rfind(".ape"), std::string::npos, ".wav");
 
 						cmdstream << "mac \'" << escape_single_quote(track->filename) << "\' \'" << escape_single_quote(track_filename) << "\' -d";
+
+						init_commands.insert(std::make_shared<dtcue::external_command>(cmdstream.str()));
+
+						cmdstream.str(std::string());
+
+						cmdstream << "rm \'" << escape_single_quote(track_filename) << "\'";
+
+						deinit_commands.insert(std::make_shared<dtcue::external_command>(cmdstream.str()));
+
+						cmdstream.str(std::string());
+					}
+					else if (track->filename.rfind(".m4a") == track->filename.length() - strlen(".m4a"))
+					{
+						track_filename = track->filename;
+						track_filename.replace(track_filename.rfind(".m4a"), std::string::npos, ".wav");
+
+						cmdstream << "alac -f \'" << escape_single_quote(track_filename) << "\' \'" << escape_single_quote(track->filename) << "\'";
 
 						init_commands.insert(std::make_shared<dtcue::external_command>(cmdstream.str()));
 
@@ -518,6 +536,7 @@ int main(int argc, char **argv)
 				}
 				else
 				{
+					fprintf(stderr, "Unsupported file type found, filename: %s\n", track->filename.c_str());
 					continue;
 				}
 

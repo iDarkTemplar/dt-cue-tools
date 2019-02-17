@@ -4,5 +4,6 @@ tool requires external packages in order to split files using cue sheet files in
 	media-sound/wavpack for *.wv files
 	virtual/ffmpeg for *.wav files
 	media-sound/mac and virtual/ffmpeg for *.ape files
+	media-sound/alac_decoder and virtual/ffmpeg for *.m4a files
 
 It also needs flac and metaflac from media-libs/flac for encoding tracks to flac
