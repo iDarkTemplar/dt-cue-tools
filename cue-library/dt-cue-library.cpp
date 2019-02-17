@@ -20,6 +20,8 @@
 
 #include <dt-cue-library.hpp>
 
+#include <algorithm>
+#include <cctype>
 #include <stdexcept>
 #include <fstream>
 #include <sstream>
@@ -258,6 +260,15 @@ cue parse_cue_file(const std::string &filename)
 		}
 		else
 		{
+			// if line is empty or contains only space characters, just silently skip it
+			if (std::find_if(file_line.begin(), file_line.end(), [](int ch)
+				{
+					return !std::isspace(ch);
+				}) == file_line.end())
+			{
+				continue;
+			}
+
 			throw std::runtime_error("Unrecognized line: " + file_line);
 		}
 	}

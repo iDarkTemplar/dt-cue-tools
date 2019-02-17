@@ -4,7 +4,7 @@ cmake_minimum_required( VERSION 2.8.8 )
 
 set(DTCT_VERSION_MAJOR 0)
 set(DTCT_VERSION_MINOR 3)
-set(DTCT_VERSION_PATCH 1)
+set(DTCT_VERSION_PATCH 2)
 set(DTCT_VERSION "${DTCT_VERSION_MAJOR}.${DTCT_VERSION_MINOR}.${DTCT_VERSION_PATCH}")
 
 # installation directory configuration
