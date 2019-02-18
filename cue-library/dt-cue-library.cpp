@@ -90,15 +90,15 @@ cue parse_cue_file(const std::string &filename)
 
 	cue result;
 
-	regex regex_title("^[ ]*TITLE \"([^\"]*)\"[[:cntrl:]]*$");
-	regex regex_performer("^[ ]*PERFORMER \"([^\"]*)\"[[:cntrl:]]*$");
-	regex regex_file("^[ ]*FILE \"([^\"]*)\" [[:alnum:]]+[[:cntrl:]]*$");
-	regex regex_track("^[ ]*TRACK ([[:digit:]]+) ([[:alpha:]]+)[[:cntrl:]]*$");
-	regex regex_index("^[ ]*INDEX ([[:digit:]]+) ([[:digit:]]+)[:\\.,]([[:digit:]]+)[:\\.,]([[:digit:]]+)[[:cntrl:]]*$");
-	regex regex_comment_quoted("^[ ]*REM ([[:alnum:]]+) \"([^\"]*)\"[[:cntrl:]]*$");
-	regex regex_comment_plain("^[ ]*REM ([[:alnum:]]+) ([^[:cntrl:]]+)[[:cntrl:]]*$");
-	regex regex_else_quoted("^[ ]*([[:alnum:]]+) \"([^\"]*)\"[[:cntrl:]]*$");
-	regex regex_else_plain("^[ ]*([[:alnum:]]+) ([^[:cntrl:]]+)[[:cntrl:]]*$");
+	regex regex_title("^[ \t]*TITLE[ \t]+\"([^\"]*)\"[ \t[:cntrl:]]*$");
+	regex regex_performer("^[ \t]*PERFORMER[ \t]+\"([^\"]*)\"[ \t[:cntrl:]]*$");
+	regex regex_file("^[ \t]*FILE[ \t]+\"([^\"]*)\"[ \t]+[[:alnum:]]+[ \t[:cntrl:]]*$");
+	regex regex_track("^[ \t]*TRACK[ \t]+([[:digit:]]+)[ \t]+([[:alpha:]]+)[ \t[:cntrl:]]*$");
+	regex regex_index("^[ \t]*INDEX[ \t]+([[:digit:]]+)[ \t]+([[:digit:]]+)[:\\.,]([[:digit:]]+)[:\\.,]([[:digit:]]+)[ \t[:cntrl:]]*$");
+	regex regex_comment_quoted("^[ \t]*REM[ \t]+([[:alnum:]]+)[ \t]+\"([^\"]*)\"[ \t[:cntrl:]]*$");
+	regex regex_comment_plain("^[ \t]*REM[ \t]+([[:alnum:]]+)[ \t]+([^[:cntrl:]]+)[ \t[:cntrl:]]*$");
+	regex regex_else_quoted("^[ \t]*([[:alnum:]]+)[ \t]+\"([^\"]*)\"[ \t[:cntrl:]]*$");
+	regex regex_else_plain("^[ \t]*([[:alnum:]]+)[ \t]+([^[:cntrl:]]+)[ \t[:cntrl:]]*$");
 
 	smatch results;
 
