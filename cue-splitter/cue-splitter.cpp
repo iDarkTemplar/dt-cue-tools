@@ -77,13 +77,6 @@ enum class gap_action_type
 	prepend_first_then_append
 };
 
-static std::set<std::string> skipped_tags = {
-	"CDTEXTFILE",
-	"FLAGS",
-	"PREGAP",
-	"POSTGAP"
-};
-
 std::string escape_single_quote(const std::string &input)
 {
 	std::string result = input;
@@ -181,11 +174,6 @@ std::list<track_data> convert_cue_to_tracks(const dtcue::cue &cue, gap_action_ty
 
 		// NOTE: rename PERFORMER tag into ARTIST
 		rename_tag(data.tags, "PERFORMER", "ARTIST");
-
-		for (const auto &skipped_tag: skipped_tags)
-		{
-			data.tags.erase(skipped_tag);
-		}
 
 		size_t index = index1->second.file_index;
 		dtcue::time_point initial_timepoint = index1->second.time;
