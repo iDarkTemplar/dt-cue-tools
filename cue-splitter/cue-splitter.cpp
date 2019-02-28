@@ -525,7 +525,6 @@ int main(int argc, char **argv)
 			}
 		}
 
-#if 0
 		std::list<std::list<std::shared_ptr<dtcue::command> > > commands_list;
 		std::set<std::shared_ptr<dtcue::command>, dtcue::command_comparator> init_commands, deinit_commands;
 
@@ -536,54 +535,62 @@ int main(int argc, char **argv)
 			{
 				std::stringstream cmdstream;
 
-				if (track->filename.rfind(".flac") == track->filename.length() - strlen(".flac"))
+				// TODO: support concatenating tracks from parts of multiple files
+				if (track->parts.size() != 1)
+				{
+					std::stringstream err;
+					err << "Track with index " << track->index << " consists of more than 1 file. This is currently not supported.";
+					throw std::runtime_error(err.str());
+				}
+
+				if (track->parts.front().filename.rfind(".flac") == track->parts.front().filename.length() - strlen(".flac"))
 				{
 					// use "C" locale in order to always use '.' as separator
 					cmdstream << "LC_ALL=C ";
 					cmdstream << "flac -d -F";
 
-					if (track->start_time)
+					if (track->parts.front().start_time)
 					{
-						cmdstream << " --skip=" << track->start_time->minutes << ':' << track->start_time->seconds << '.' << frames_to_seconds_map[track->start_time->frames];
+						cmdstream << " --skip=" << track->parts.front().start_time->minutes << ':' << track->parts.front().start_time->seconds << '.' << frames_to_seconds_map[track->parts.front().start_time->frames];
 					}
 
-					if (track->end_time)
+					if (track->parts.front().end_time)
 					{
-						cmdstream << " --until=" << track->end_time->minutes << ':' << track->end_time->seconds << '.' << frames_to_seconds_map[track->end_time->frames];
+						cmdstream << " --until=" << track->parts.front().end_time->minutes << ':' << track->parts.front().end_time->seconds << '.' << frames_to_seconds_map[track->parts.front().end_time->frames];
 					}
 
-					cmdstream << " -o \'_track_" << track->index << ".wav\' \'" << escape_single_quote(track->filename) << "\'";
+					cmdstream << " -o \'_track_" << track->index << ".wav\' \'" << escape_single_quote(track->parts.front().filename) << "\'";
 				}
-				else if (track->filename.rfind(".wv") == track->filename.length() - strlen(".wv"))
+				else if (track->parts.front().filename.rfind(".wv") == track->parts.front().filename.length() - strlen(".wv"))
 				{
 					cmdstream << "wvunpack";
 
-					if (track->start_time)
+					if (track->parts.front().start_time)
 					{
-						unsigned int minutes = std::stoul(track->start_time->minutes);
-						cmdstream << " --skip=" << minutes / 60 << ":" << minutes % 60 << ':' << track->start_time->seconds << "." << frames_to_seconds_map[track->start_time->frames];
+						unsigned int minutes = std::stoul(track->parts.front().start_time->minutes);
+						cmdstream << " --skip=" << minutes / 60 << ":" << minutes % 60 << ':' << track->parts.front().start_time->seconds << "." << frames_to_seconds_map[track->parts.front().start_time->frames];
 					}
 
-					if (track->end_time)
+					if (track->parts.front().end_time)
 					{
-						unsigned int minutes = std::stoul(track->end_time->minutes);
-						cmdstream << " --until=" << minutes / 60 << ":" << minutes % 60 << ':' << track->end_time->seconds << "." << frames_to_seconds_map[track->end_time->frames];
+						unsigned int minutes = std::stoul(track->parts.front().end_time->minutes);
+						cmdstream << " --until=" << minutes / 60 << ":" << minutes % 60 << ':' << track->parts.front().end_time->seconds << "." << frames_to_seconds_map[track->parts.front().end_time->frames];
 					}
 
-					cmdstream << " -o \'_track_" << track->index << ".wav\' \'" << escape_single_quote(track->filename) << "\'";
+					cmdstream << " -o \'_track_" << track->index << ".wav\' \'" << escape_single_quote(track->parts.front().filename) << "\'";
 				}
-				else if ((track->filename.rfind(".ape") == track->filename.length() - strlen(".ape"))
-					|| (track->filename.rfind(".m4a") == track->filename.length() - strlen(".m4a"))
-					|| (track->filename.rfind(".wav") == track->filename.length() - strlen(".wav")))
+				else if ((track->parts.front().filename.rfind(".ape") == track->parts.front().filename.length() - strlen(".ape"))
+					|| (track->parts.front().filename.rfind(".m4a") == track->parts.front().filename.length() - strlen(".m4a"))
+					|| (track->parts.front().filename.rfind(".wav") == track->parts.front().filename.length() - strlen(".wav")))
 				{
 					std::string track_filename;
 
-					if (track->filename.rfind(".ape") == track->filename.length() - strlen(".ape"))
+					if (track->parts.front().filename.rfind(".ape") == track->parts.front().filename.length() - strlen(".ape"))
 					{
-						track_filename = track->filename;
+						track_filename = track->parts.front().filename;
 						track_filename.replace(track_filename.rfind(".ape"), std::string::npos, ".wav");
 
-						cmdstream << "mac \'" << escape_single_quote(track->filename) << "\' \'" << escape_single_quote(track_filename) << "\' -d";
+						cmdstream << "mac \'" << escape_single_quote(track->parts.front().filename) << "\' \'" << escape_single_quote(track_filename) << "\' -d";
 
 						init_commands.insert(std::make_shared<dtcue::external_command>(cmdstream.str()));
 
@@ -595,12 +602,12 @@ int main(int argc, char **argv)
 
 						cmdstream.str(std::string());
 					}
-					else if (track->filename.rfind(".m4a") == track->filename.length() - strlen(".m4a"))
+					else if (track->parts.front().filename.rfind(".m4a") == track->parts.front().filename.length() - strlen(".m4a"))
 					{
-						track_filename = track->filename;
+						track_filename = track->parts.front().filename;
 						track_filename.replace(track_filename.rfind(".m4a"), std::string::npos, ".wav");
 
-						cmdstream << "alac -f \'" << escape_single_quote(track_filename) << "\' \'" << escape_single_quote(track->filename) << "\'";
+						cmdstream << "alac -f \'" << escape_single_quote(track_filename) << "\' \'" << escape_single_quote(track->parts.front().filename) << "\'";
 
 						init_commands.insert(std::make_shared<dtcue::external_command>(cmdstream.str()));
 
@@ -614,28 +621,28 @@ int main(int argc, char **argv)
 					}
 					else
 					{
-						track_filename = track->filename;
+						track_filename = track->parts.front().filename;
 					}
 
 					cmdstream << "ffmpeg -i \'" << escape_single_quote(track_filename) << "\'";
 
-					if (track->start_time)
+					if (track->parts.front().start_time)
 					{
-						unsigned int minutes = std::stoul(track->start_time->minutes);
-						cmdstream << " -ss " << minutes / 60 << ":" << minutes % 60 << ':' << track->start_time->seconds << "." << frames_to_seconds_map[track->start_time->frames];
+						unsigned int minutes = std::stoul(track->parts.front().start_time->minutes);
+						cmdstream << " -ss " << minutes / 60 << ":" << minutes % 60 << ':' << track->parts.front().start_time->seconds << "." << frames_to_seconds_map[track->parts.front().start_time->frames];
 					}
 
-					if (track->end_time)
+					if (track->parts.front().end_time)
 					{
-						unsigned int minutes = std::stoul(track->end_time->minutes);
-						cmdstream << " -to " << minutes / 60 << ":" << minutes % 60 << ':' << track->end_time->seconds << "." << frames_to_seconds_map[track->end_time->frames];
+						unsigned int minutes = std::stoul(track->parts.front().end_time->minutes);
+						cmdstream << " -to " << minutes / 60 << ":" << minutes % 60 << ':' << track->parts.front().end_time->seconds << "." << frames_to_seconds_map[track->parts.front().end_time->frames];
 					}
 
 					cmdstream << " -acodec copy \'_track_" << track->index << ".wav\'";
 				}
 				else
 				{
-					fprintf(stderr, "Unsupported file type found, filename: %s\n", track->filename.c_str());
+					fprintf(stderr, "Unsupported file type found, filename: %s\n", track->parts.front().filename.c_str());
 					continue;
 				}
 
@@ -747,7 +754,6 @@ int main(int argc, char **argv)
 				}
 			}
 		}
-#endif
 	}
 	catch (const std::exception &exc)
 	{
