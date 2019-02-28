@@ -3,8 +3,8 @@ project(DT-Cue-Tools)
 cmake_minimum_required( VERSION 2.8.8 )
 
 set(DTCT_VERSION_MAJOR 0)
-set(DTCT_VERSION_MINOR 3)
-set(DTCT_VERSION_PATCH 3)
+set(DTCT_VERSION_MINOR 4)
+set(DTCT_VERSION_PATCH 0)
 set(DTCT_VERSION "${DTCT_VERSION_MAJOR}.${DTCT_VERSION_MINOR}.${DTCT_VERSION_PATCH}")
 
 # installation directory configuration
@@ -19,8 +19,6 @@ set(DATA_PREFIX "${CMAKE_INSTALL_PREFIX}/share" CACHE PATH "Prefix prepended to 
 option(ENABLE_LIBVERSION "enable libraries versioning" ON)
 option(ENABLE_SPLIT_TOOL "enable split tool" ON)
 option(USE_BOOST "use boost components instead of std or custom ones" OFF)
-
-message(STATUS "System: ${CMAKE_SYSTEM_NAME}" )
 
 # don't USE -O3 with GCC, it causes less precise calculations
 if (CMAKE_COMPILER_IS_GNUCC)

@@ -26,6 +26,7 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <type_traits>
 
 #include <utility>
 
@@ -63,6 +64,30 @@ static inline bool regex_match(const std::string &str, std::smatch &match_result
 
 namespace dtcue {
 
+track_flags operator|(track_flags lhs, track_flags rhs)
+{
+	using T = std::underlying_type_t<track_flags>;
+	return static_cast<track_flags>(static_cast<T>(lhs) | static_cast<T>(rhs));
+}
+
+track_flags& operator|=(track_flags &lhs, track_flags rhs)
+{
+	lhs = lhs | rhs;
+	return lhs;
+}
+
+track_flags operator&(track_flags lhs, track_flags rhs)
+{
+	using T = std::underlying_type_t<track_flags>;
+	return static_cast<track_flags>(static_cast<T>(lhs) & static_cast<T>(rhs));
+}
+
+track_flags& operator&=(track_flags &lhs, track_flags rhs)
+{
+	lhs = lhs & rhs;
+	return lhs;
+}
+
 cue parse_cue_file(const std::string &filename)
 {
 	struct stat statbuf;
@@ -95,12 +120,23 @@ cue parse_cue_file(const std::string &filename)
 	regex regex_file("^[ \t]*FILE[ \t]+\"([^\"]*)\"[ \t]+[[:alnum:]]+[ \t[:cntrl:]]*$");
 	regex regex_track("^[ \t]*TRACK[ \t]+([[:digit:]]+)[ \t]+([[:alpha:]]+)[ \t[:cntrl:]]*$");
 	regex regex_index("^[ \t]*INDEX[ \t]+([[:digit:]]+)[ \t]+([[:digit:]]+)[:\\.,]([[:digit:]]+)[:\\.,]([[:digit:]]+)[ \t[:cntrl:]]*$");
+	regex regex_cdtextfile("^[ \t]*CDTEXTFILE[ \t]+\"([^\"]*)\"[ \t[:cntrl:]]*$");
+	regex regex_flags("^[ \t]*FLAGS[ \t]+([[:alnum:]]+(?:[ \t]+[[:alnum:]]+)*)[ \t[:cntrl:]]*$");
+	regex regex_pregap("^[ \t]*PREGAP[ \t]+([[:digit:]]+)[:\\.,]([[:digit:]]+)[:\\.,]([[:digit:]]+)[ \t[:cntrl:]]*$");
+	regex regex_postgap("^[ \t]*POSTGAP[ \t]+([[:digit:]]+)[:\\.,]([[:digit:]]+)[:\\.,]([[:digit:]]+)[ \t[:cntrl:]]*$");
 	regex regex_comment_quoted("^[ \t]*REM[ \t]+([[:alnum:]]+)[ \t]+\"([^\"]*)\"[ \t[:cntrl:]]*$");
 	regex regex_comment_plain("^[ \t]*REM[ \t]+([[:alnum:]]+)[ \t]+([^[:cntrl:]]+)[ \t[:cntrl:]]*$");
 	regex regex_else_quoted("^[ \t]*([[:alnum:]]+)[ \t]+\"([^\"]*)\"[ \t[:cntrl:]]*$");
 	regex regex_else_plain("^[ \t]*([[:alnum:]]+)[ \t]+([^[:cntrl:]]+)[ \t[:cntrl:]]*$");
 
 	smatch results;
+
+	std::map<std::string, track_flags> string_to_flag_map = {
+		{ "DCP", track_flags::flag_dcp },
+		{ "4CH", track_flags::flag_4ch },
+		{ "PRE", track_flags::flag_pre },
+		{ "SCMS", track_flags::flag_scms }
+	};
 
 	bool got_track = false;
 	bool got_filename = false;
@@ -208,6 +244,80 @@ cue parse_cue_file(const std::string &filename)
 			index.time.frames = results[4].str();
 
 			obtained_track.indices[std::stoul(results[1].str())] = index;
+		}
+		else if (regex_match(file_line, results, regex_cdtextfile))
+		{
+#ifndef NDEBUG
+			printf("\tGot cdtextfile: %s\n", results[1].str().c_str());
+#endif /* NDEBUG */
+
+			result.cdtextfile = results[1].str();
+		}
+		else if (regex_match(file_line, results, regex_flags))
+		{
+#ifndef NDEBUG
+			printf("\tGot flags: %s\n", results[1].str().c_str());
+#endif /* NDEBUG */
+
+			if ((!got_track) || (!got_filename))
+			{
+				throw std::runtime_error("Got tag FLAGS before any tag TRACK and tag FILE");
+			}
+
+			std::string value;
+			std::istringstream stream(results[1].str());
+
+			while (std::getline(stream, value, ' '))
+			{
+				if (!value.empty())
+				{
+					auto iter = string_to_flag_map.find(value);
+					if (iter == string_to_flag_map.end())
+					{
+						std::stringstream err;
+						err << "Track flag " << value << " is not supported";
+						throw std::runtime_error(err.str());
+					}
+
+					obtained_track.flags |= iter->second;
+				}
+			}
+		}
+		else if (regex_match(file_line, results, regex_pregap))
+		{
+#ifndef NDEBUG
+			printf("\tGot pregap, value %s:%s:%s\n", results[1].str().c_str(), results[2].str().c_str(), results[3].str().c_str());
+#endif /* NDEBUG */
+
+			if ((!got_track) || (!got_filename))
+			{
+				throw std::runtime_error("Got tag PREGAP before any tag TRACK and tag FILE");
+			}
+
+			time_point index;
+			index.minutes = results[1].str();
+			index.seconds = results[2].str();
+			index.frames = results[3].str();
+
+			obtained_track.pregap = index;
+		}
+		else if (regex_match(file_line, results, regex_postgap))
+		{
+#ifndef NDEBUG
+			printf("\tGot postgap, value %s:%s:%s\n", results[1].str().c_str(), results[2].str().c_str(), results[3].str().c_str());
+#endif /* NDEBUG */
+
+			if ((!got_track) || (!got_filename))
+			{
+				throw std::runtime_error("Got tag POSTGAP before any tag TRACK and tag FILE");
+			}
+
+			time_point index;
+			index.minutes = results[1].str();
+			index.seconds = results[2].str();
+			index.frames = results[3].str();
+
+			obtained_track.postgap = index;
 		}
 		else if (regex_match(file_line, results, regex_comment_quoted))
 		{

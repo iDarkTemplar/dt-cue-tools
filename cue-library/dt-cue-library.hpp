@@ -58,6 +58,11 @@ enum class track_flags
 	flag_scms = 0x08
 };
 
+track_flags operator|(track_flags lhs, track_flags rhs);
+track_flags& operator|=(track_flags &lhs, track_flags rhs);
+track_flags operator&(track_flags lhs, track_flags rhs);
+track_flags& operator&=(track_flags &lhs, track_flags rhs);
+
 struct time_point
 {
 	std::string minutes;
@@ -69,6 +74,11 @@ struct file_time_point
 {
 	size_t file_index;
 	time_point time;
+
+	file_time_point()
+		: file_index(0)
+	{
+	}
 };
 
 struct track
@@ -78,17 +88,25 @@ struct track
 	unsigned int track_index;
 	track_type type;
 
-	std::string cdtextfile;
 	track_flags flags;
 	optional<time_point> pregap;
 	optional<time_point> postgap;
 
 	std::vector<std::string> files;
 	std::map<unsigned int, file_time_point> indices;
+
+	track()
+		: track_index(0),
+		type(track_type::unknown),
+		flags(track_flags::flag_none)
+	{
+	}
 };
 
 struct cue
 {
+	std::string cdtextfile;
+
 	std::map<std::string, std::string> tags;
 
 	std::vector<track> tracks;
