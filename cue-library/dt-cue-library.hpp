@@ -25,6 +25,22 @@
 #include <map>
 #include <vector>
 
+#if USE_BOOST
+
+#include <boost/optional.hpp>
+
+template <typename T>
+using optional = boost::optional<T>;
+
+#else /* USE_BOOST */
+
+#include <experimental/optional>
+
+template <typename T>
+using optional = std::experimental::optional<T>;
+
+#endif /* USE_BOOST */
+
 namespace dtcue {
 
 enum class track_type
@@ -33,8 +49,18 @@ enum class track_type
 	audio
 };
 
+enum class track_flags
+{
+	flag_none = 0x00,
+	flag_dcp  = 0x01,
+	flag_4ch  = 0x02,
+	flag_pre  = 0x04,
+	flag_scms = 0x08
+};
+
 struct time_point
 {
+	size_t file_index;
 	std::string minutes;
 	std::string seconds;
 	std::string frames;
@@ -44,23 +70,23 @@ struct track
 {
 	std::map<std::string, std::string> tags;
 
+	unsigned int track_index;
 	track_type type;
 
+	std::string cdtextfile;
+	track_flags flags;
+	optional<time_point> pregap;
+	optional<time_point> postgap;
+
+	std::vector<std::string> files;
 	std::map<unsigned int, time_point> indices;
-};
-
-struct file
-{
-	std::string filename;
-
-	std::map<unsigned int, track> tracks;
 };
 
 struct cue
 {
 	std::map<std::string, std::string> tags;
 
-	std::vector<file> files;
+	std::vector<track> tracks;
 };
 
 cue parse_cue_file(const std::string &filename);

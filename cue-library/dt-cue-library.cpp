@@ -104,9 +104,8 @@ cue parse_cue_file(const std::string &filename)
 
 	bool got_track = false;
 	bool got_filename = false;
-	file obtained_file;
+	std::string last_file_name;
 	track obtained_track;
-	unsigned int track_index = 0;
 	std::map<std::string, std::string> tags;
 
 	while (std::getline(input_file, file_line))
@@ -137,31 +136,13 @@ cue parse_cue_file(const std::string &filename)
 			printf("\tGot file: %s\n", results[1].str().c_str());
 #endif /* NDEBUG */
 
-			if (got_filename)
-			{
-				if (got_track)
-				{
-					if (obtained_track.indices.find(1) == obtained_track.indices.end())
-					{
-						std::stringstream err;
-						err << "Track with index " << track_index << " doesn't have index 01";
-						throw std::runtime_error(err.str());
-					}
-
-					obtained_track.tags = std::move(tags);
-					obtained_file.tracks[track_index] = obtained_track;
-				}
-
-				result.files.push_back(obtained_file);
-				tags.clear();
-				obtained_track = track();
-				track_index = 0;
-				got_track = false;
-			}
-
 			got_filename = true;
-			obtained_file = file();
-			obtained_file.filename = results[1].str();
+			last_file_name = results[1].str();
+
+			if (got_track)
+			{
+				obtained_track.files.push_back(last_file_name);
+			}
 		}
 		else if (regex_match(file_line, results, regex_track))
 		{
@@ -179,12 +160,12 @@ cue parse_cue_file(const std::string &filename)
 				if (obtained_track.indices.find(1) == obtained_track.indices.end())
 				{
 					std::stringstream err;
-					err << "Track with index " << track_index << " doesn't have index 01";
+					err << "Track with index " << obtained_track.track_index << " doesn't have index 01";
 					throw std::runtime_error(err.str());
 				}
 
 				obtained_track.tags = std::move(tags);
-				obtained_file.tracks[track_index] = obtained_track;
+				result.tracks.push_back(obtained_track);
 			}
 			else
 			{
@@ -195,7 +176,7 @@ cue parse_cue_file(const std::string &filename)
 
 			got_track = true;
 			obtained_track = track();
-			track_index = std::stoul(results[1].str());
+			obtained_track.track_index = std::stoul(results[1].str());
 
 			// NOTE: check type being AUDIO, everything else is ignored
 			if (results[2].str() == std::string("AUDIO"))
@@ -206,6 +187,8 @@ cue parse_cue_file(const std::string &filename)
 			{
 				obtained_track.type = dtcue::track_type::unknown;
 			}
+
+			obtained_track.files.push_back(last_file_name);
 		}
 		else if (regex_match(file_line, results, regex_index))
 		{
@@ -213,17 +196,17 @@ cue parse_cue_file(const std::string &filename)
 			printf("\tGot index: %s, value %s:%s:%s\n", results[1].str().c_str(), results[2].str().c_str(), results[3].str().c_str(), results[4].str().c_str());
 #endif /* NDEBUG */
 
-			if (!got_track)
+			if ((!got_track) || (!got_filename))
 			{
-				throw std::runtime_error("Got tag INDEX before any tag TRACK");
+				throw std::runtime_error("Got tag INDEX before any tag TRACK and tag FILE");
 			}
 
 			time_point index;
+			index.file_index = obtained_track.files.size() - 1;
 			index.minutes = results[2].str();
 			index.seconds = results[3].str();
 			index.frames = results[4].str();
 
-			// NOTE: check index being 00 or 01, everything else is ignored
 			obtained_track.indices[std::stoul(results[1].str())] = index;
 		}
 		else if (regex_match(file_line, results, regex_comment_quoted))
@@ -273,22 +256,17 @@ cue parse_cue_file(const std::string &filename)
 		}
 	}
 
-	if (got_filename)
+	if (got_filename && got_track)
 	{
-		if (got_track)
+		if (obtained_track.indices.find(1) == obtained_track.indices.end())
 		{
-			if (obtained_track.indices.find(1) == obtained_track.indices.end())
-			{
-				std::stringstream err;
-				err << "Track with index " << track_index << " doesn't have index 01";
-				throw std::runtime_error(err.str());
-			}
-
-			obtained_track.tags = std::move(tags);
-			obtained_file.tracks[track_index] = obtained_track;
+			std::stringstream err;
+			err << "Track with index " << obtained_track.track_index << " doesn't have index 01";
+			throw std::runtime_error(err.str());
 		}
 
-		result.files.push_back(obtained_file);
+		obtained_track.tags = std::move(tags);
+		result.tracks.push_back(obtained_track);
 	}
 
 	return result;

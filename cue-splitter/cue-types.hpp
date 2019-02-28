@@ -24,10 +24,6 @@
 #if USE_BOOST
 
 #include <boost/regex.hpp>
-#include <boost/optional.hpp>
-
-template <typename T>
-using optional = boost::optional<T>;
 
 using regex = boost::regex;
 using smatch = boost::smatch;
@@ -35,10 +31,6 @@ using smatch = boost::smatch;
 #else /* USE_BOOST */
 
 #include <regex>
-#include <experimental/optional>
-
-template <typename T>
-using optional = std::experimental::optional<T>;
 
 using regex = std::regex;
 using smatch = std::smatch;

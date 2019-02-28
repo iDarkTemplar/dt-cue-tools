@@ -51,15 +51,21 @@ inline bool regex_match(const std::string &str, std::smatch &match_results, cons
 
 #endif /* USE_BOOST */
 
-struct track_data
+struct track_part
 {
 	std::string filename;
+
+	optional<dtcue::time_point> start_time;
+	optional<dtcue::time_point> end_time;
+};
+
+struct track_data
+{
 	std::map<std::string, std::string> tags;
 
 	unsigned int index;
 
-	optional<dtcue::time_point> start_time;
-	optional<dtcue::time_point> end_time;
+	std::list<track_part> parts;
 };
 
 enum class gap_action_type
@@ -329,6 +335,7 @@ int main(int argc, char **argv)
 
 		dtcue::cue cuesheet = dtcue::parse_cue_file(filename);
 
+#if 0
 		// convert frames to time, from 1/75 to 1/1000000, and save these values to map
 		{
 			for (auto file = cuesheet.files.begin(); file != cuesheet.files.end(); ++file)
@@ -660,6 +667,7 @@ int main(int argc, char **argv)
 				}
 			}
 		}
+#endif
 	}
 	catch (const std::exception &exc)
 	{
