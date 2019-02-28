@@ -60,10 +60,15 @@ enum class track_flags
 
 struct time_point
 {
-	size_t file_index;
 	std::string minutes;
 	std::string seconds;
 	std::string frames;
+};
+
+struct file_time_point
+{
+	size_t file_index;
+	time_point time;
 };
 
 struct track
@@ -79,7 +84,7 @@ struct track
 	optional<time_point> postgap;
 
 	std::vector<std::string> files;
-	std::map<unsigned int, time_point> indices;
+	std::map<unsigned int, file_time_point> indices;
 };
 
 struct cue

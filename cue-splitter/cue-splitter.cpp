@@ -21,6 +21,7 @@
 #include <dt-cue-library.hpp>
 
 #include <list>
+#include <vector>
 #include <set>
 #include <stdexcept>
 #include <sstream>
@@ -65,7 +66,7 @@ struct track_data
 
 	unsigned int index;
 
-	std::list<track_part> parts;
+	std::vector<track_part> parts;
 };
 
 enum class gap_action_type
@@ -116,6 +117,11 @@ void rename_tag(std::map<std::string, std::string> &tags, const std::string &old
 	}
 }
 
+bool is_timepoint_zero(const dtcue::time_point &timepoint)
+{
+	return ((std::stoul(timepoint.minutes) == 0) && (std::stoul(timepoint.seconds) == 0) && (std::stoul(timepoint.frames) == 0));
+}
+
 std::list<track_data> convert_cue_to_tracks(const dtcue::cue &cue, gap_action_type gap_action)
 {
 	std::list<track_data> result;
@@ -126,111 +132,360 @@ std::list<track_data> convert_cue_to_tracks(const dtcue::cue &cue, gap_action_ty
 	// NOTE: initial TITLE is transformed into ALBUM, TITLE for track is left as it is
 	rename_tag(global_tags, "TITLE", "ALBUM");
 
-	for (auto file = cue.files.begin(); file != cue.files.end(); ++file)
+	auto track = cue.tracks.begin();
+	auto next_track = track;
+
+	while (track != cue.tracks.end())
 	{
-		auto track = file->tracks.begin();
-		auto next_track = track;
+		++next_track;
 
-		while (track != file->tracks.end())
+		auto index0 = track->indices.find(0);
+		auto index1 = track->indices.find(1);
+
+		optional<std::map<unsigned int, dtcue::file_time_point>::const_iterator> index0_next;
+		optional<std::map<unsigned int, dtcue::file_time_point>::const_iterator> index1_next;
+
+		if (index1 == track->indices.end())
 		{
-			++next_track;
-			auto index0 = track->second.indices.find(0);
-			auto index1 = track->second.indices.find(1);
+			std::stringstream err;
+			err << "Track with index " << track->track_index << " doesn't have index 01";
+			throw std::runtime_error(err.str());
+		}
 
-			if (index1 == track->second.indices.end())
+		if (next_track != cue.tracks.end())
+		{
+			index0_next = next_track->indices.find(0);
+			index1_next = next_track->indices.find(1);
+
+			if (index1_next == next_track->indices.end())
 			{
 				std::stringstream err;
-				err << "Track with index " << track->first << " doesn't have index 01";
+				err << "Track with index " << next_track->track_index << " doesn't have index 01";
 				throw std::runtime_error(err.str());
 			}
+		}
 
-			track_data data;
-			data.filename = file->filename;
-			data.index = track->first;
+		track_data data;
+		data.index = track->track_index;
 
-			// NOTE: track-specific tags are more important compared to generic tags
-			data.tags = track->second.tags;
-			data.tags.insert(global_tags.begin(), global_tags.end());
+		// NOTE: track-specific tags are more important compared to generic tags
+		data.tags = track->tags;
+		data.tags.insert(global_tags.begin(), global_tags.end());
 
-			if (data.tags.find("TRACKNUMBER") == data.tags.end())
+		if (data.tags.find("TRACKNUMBER") == data.tags.end())
+		{
+			std::stringstream tracknumber;
+			tracknumber << data.index;
+			data.tags["TRACKNUMBER"] = tracknumber.str();
+		}
+
+		// NOTE: rename PERFORMER tag into ARTIST
+		rename_tag(data.tags, "PERFORMER", "ARTIST");
+
+		for (const auto &skipped_tag: skipped_tags)
+		{
+			data.tags.erase(skipped_tag);
+		}
+
+		switch (gap_action)
+		{
+		case gap_action_type::discard:
 			{
-				std::stringstream tracknumber;
-				tracknumber << data.index;
-				data.tags["TRACKNUMBER"] = tracknumber.str();
-			}
+				size_t index = index1->second.file_index;
 
-			// NOTE: rename PERFORMER tag into ARTIST
-			rename_tag(data.tags, "PERFORMER", "ARTIST");
-
-			for (const auto &skipped_tag: skipped_tags)
-			{
-				data.tags.erase(skipped_tag);
-			}
-
-			switch (gap_action)
-			{
-			case gap_action_type::prepend:
-				if (index0 != track->second.indices.end())
 				{
-					data.start_time = index0->second;
-				}
-				else
-				{
-					data.start_time = index1->second;
-				}
-				break;
+					track_part part;
 
-			case gap_action_type::prepend_first_then_append:
-				if ((data.index == 1) && (index0 != track->second.indices.end()))
-				{
-					data.start_time = index0->second;
-				}
-				else
-				{
-					data.start_time = index1->second;
-				}
-				break;
+					part.filename = track->files[index];
+					part.start_time = index1->second.time;
 
-			default:
-				data.start_time = index1->second;
-				break;
-			}
-
-			if (next_track != file->tracks.end())
-			{
-				auto index0_next = next_track->second.indices.find(0);
-				auto index1_next = next_track->second.indices.find(1);
-
-				if (index1_next == next_track->second.indices.end())
-				{
-					std::stringstream err;
-					err << "Track with index " << next_track->first << " doesn't have index 01";
-					throw std::runtime_error(err.str());
+					data.parts.push_back(part);
 				}
 
-				switch (gap_action)
+				for (++index ; index < track->files.size(); ++index)
 				{
-				case gap_action_type::prepend_first_then_append:
-				case gap_action_type::append:
-					data.end_time = index1_next->second;
-					break;
+					track_part part;
 
-				default:
-					if (index0_next != next_track->second.indices.end())
+					part.filename = track->files[index];
+
+					data.parts.push_back(part);
+				}
+
+				if (next_track != cue.tracks.end())
+				{
+					std::string filename;
+					dtcue::time_point timepoint;
+
+					if (index0_next && ((*index0_next) != next_track->indices.end()))
 					{
-						data.end_time = index0_next->second;
+						filename = next_track->files[(*index0_next)->second.file_index];
+						timepoint = (*index0_next)->second.time;
 					}
 					else
 					{
-						data.end_time = index1_next->second;
+						filename = next_track->files[(*index1_next)->second.file_index];
+						timepoint = (*index1_next)->second.time;
 					}
-					break;
+
+					if (is_timepoint_zero(timepoint))
+					{
+						if (data.parts.back().filename != filename)
+						{
+							std::stringstream err;
+							err << "Track with index " << next_track->track_index << " has invalid starting timestamp";
+							throw std::runtime_error(err.str());
+						}
+
+						data.parts.pop_back();
+					}
+					else
+					{
+						if (data.parts.back().filename != filename)
+						{
+							std::stringstream err;
+							err << "Track with index " << next_track->track_index << " doesn't continue at same file as previous track";
+							throw std::runtime_error(err.str());
+						}
+
+						data.parts.back().end_time = timepoint;
+					}
 				}
 			}
+			break;
 
-			result.push_back(data);
-			track = next_track;
+		case gap_action_type::prepend:
+			{
+				size_t index = index1->second.file_index;
+				dtcue::time_point initial_timepoint = index1->second.time;
+
+				if (index0 != track->indices.end())
+				{
+					index = index0->second.file_index;
+					initial_timepoint = index0->second.time;
+				}
+
+				{
+					track_part part;
+
+					part.filename = track->files[index];
+					part.start_time = initial_timepoint;
+
+					data.parts.push_back(part);
+				}
+
+				for (++index ; index < track->files.size(); ++index)
+				{
+					track_part part;
+
+					part.filename = track->files[index];
+
+					data.parts.push_back(part);
+				}
+
+				if (next_track != cue.tracks.end())
+				{
+					std::string filename;
+					dtcue::time_point timepoint;
+
+					if (index0_next && ((*index0_next) != next_track->indices.end()))
+					{
+						filename = next_track->files[(*index0_next)->second.file_index];
+						timepoint = (*index0_next)->second.time;
+					}
+					else
+					{
+						filename = next_track->files[(*index1_next)->second.file_index];
+						timepoint = (*index1_next)->second.time;
+					}
+
+					if (is_timepoint_zero(timepoint))
+					{
+						if (data.parts.back().filename != filename)
+						{
+							std::stringstream err;
+							err << "Track with index " << next_track->track_index << " has invalid starting timestamp";
+							throw std::runtime_error(err.str());
+						}
+
+						data.parts.pop_back();
+					}
+					else
+					{
+						if (data.parts.back().filename != filename)
+						{
+							std::stringstream err;
+							err << "Track with index " << next_track->track_index << " doesn't continue at same file as previous track";
+							throw std::runtime_error(err.str());
+						}
+
+						data.parts.back().end_time = timepoint;
+					}
+				}
+			}
+			break;
+
+		case gap_action_type::append:
+			{
+				size_t index = index1->second.file_index;
+
+				{
+					track_part part;
+
+					part.filename = track->files[index];
+					part.start_time = index1->second.time;
+
+					data.parts.push_back(part);
+				}
+
+				for (++index ; index < track->files.size(); ++index)
+				{
+					track_part part;
+
+					part.filename = track->files[index];
+
+					data.parts.push_back(part);
+				}
+
+				if (next_track != cue.tracks.end())
+				{
+					std::string filename;
+					dtcue::time_point timepoint;
+
+					if ((*index1_next)->second.file_index != 0)
+					{
+						index = 0;
+						size_t last_index = (*index1_next)->second.file_index;
+
+						if (data.parts.back().filename == next_track->files[0])
+						{
+							index = 1;
+						}
+
+						for ( ; index <= last_index; ++index)
+						{
+							track_part part;
+
+							part.filename = next_track->files[index];
+
+							data.parts.push_back(part);
+						}
+					}
+
+					filename = next_track->files[(*index1_next)->second.file_index];
+					timepoint = (*index1_next)->second.time;
+
+					if (is_timepoint_zero(timepoint))
+					{
+						if (data.parts.back().filename != filename)
+						{
+							std::stringstream err;
+							err << "Track with index " << next_track->track_index << " has invalid starting timestamp";
+							throw std::runtime_error(err.str());
+						}
+
+						data.parts.pop_back();
+					}
+					else
+					{
+						if (data.parts.back().filename != filename)
+						{
+							std::stringstream err;
+							err << "Track with index " << next_track->track_index << " doesn't continue at same file as previous track";
+							throw std::runtime_error(err.str());
+						}
+
+						data.parts.back().end_time = timepoint;
+					}
+				}
+			}
+			break;
+
+		case gap_action_type::prepend_first_then_append:
+			{
+				size_t index = index1->second.file_index;
+				dtcue::time_point initial_timepoint = index1->second.time;
+
+				if ((index0 != track->indices.end()) && (track == cue.tracks.begin()))
+				{
+					index = index0->second.file_index;
+					initial_timepoint = index0->second.time;
+				}
+
+				{
+					track_part part;
+
+					part.filename = track->files[index];
+					part.start_time = initial_timepoint;
+
+					data.parts.push_back(part);
+				}
+
+				for (++index ; index < track->files.size(); ++index)
+				{
+					track_part part;
+
+					part.filename = track->files[index];
+
+					data.parts.push_back(part);
+				}
+
+				if (next_track != cue.tracks.end())
+				{
+					std::string filename;
+					dtcue::time_point timepoint;
+
+					if ((*index1_next)->second.file_index != 0)
+					{
+						index = 0;
+						size_t last_index = (*index1_next)->second.file_index;
+
+						if (data.parts.back().filename == next_track->files[0])
+						{
+							index = 1;
+						}
+
+						for ( ; index <= last_index; ++index)
+						{
+							track_part part;
+
+							part.filename = next_track->files[index];
+
+							data.parts.push_back(part);
+						}
+					}
+
+					filename = next_track->files[(*index1_next)->second.file_index];
+					timepoint = (*index1_next)->second.time;
+
+					if (is_timepoint_zero(timepoint))
+					{
+						if (data.parts.back().filename != filename)
+						{
+							std::stringstream err;
+							err << "Track with index " << next_track->track_index << " has invalid starting timestamp";
+							throw std::runtime_error(err.str());
+						}
+
+						data.parts.pop_back();
+					}
+					else
+					{
+						if (data.parts.back().filename != filename)
+						{
+							std::stringstream err;
+							err << "Track with index " << next_track->track_index << " doesn't continue at same file as previous track";
+							throw std::runtime_error(err.str());
+						}
+
+						data.parts.back().end_time = timepoint;
+					}
+				}
+			}
+			break;
 		}
+
+		result.push_back(data);
+		track = next_track;
 	}
 
 	return result;
@@ -335,20 +590,16 @@ int main(int argc, char **argv)
 
 		dtcue::cue cuesheet = dtcue::parse_cue_file(filename);
 
-#if 0
 		// convert frames to time, from 1/75 to 1/1000000, and save these values to map
 		{
-			for (auto file = cuesheet.files.begin(); file != cuesheet.files.end(); ++file)
+			for (auto track = cuesheet.tracks.begin(); track != cuesheet.tracks.end(); ++track)
 			{
-				for (auto track = file->tracks.begin(); track != file->tracks.end(); ++track)
+				for (auto index = track->indices.begin(); index != track->indices.end(); ++index)
 				{
-					for (auto index = track->second.indices.begin(); index != track->second.indices.end(); ++index)
+					if (!convert_and_save_frames(frames_to_seconds_map, index->second.time.frames))
 					{
-						if (!convert_and_save_frames(frames_to_seconds_map, index->second.frames))
-						{
-							fprintf(stderr, "Failed to convert frames for file %s, track %u, index %u: value is %s\n", file->filename.c_str(), track->first, index->first, index->second.frames.c_str());
-							return -1;
-						}
+						fprintf(stderr, "Failed to convert frames for track %u, index %u: value is %s\n", track->track_index, index->first, index->second.time.frames.c_str());
+						return -1;
 					}
 				}
 			}
@@ -363,25 +614,25 @@ int main(int argc, char **argv)
 				printf("\t%s=%s\n", tag->first.c_str(), tag->second.c_str());
 			}
 
-			printf("Files:\n");
+			printf("Tracks:\n");
 
-			for (auto file = cuesheet.files.begin(); file != cuesheet.files.end(); ++file)
+			for (auto track = cuesheet.tracks.begin(); track != cuesheet.tracks.end(); ++track)
 			{
-				printf("\tFile: %s\n", file->filename.c_str());
+				printf("\tTrack %u\n", track->track_index);
 
-				for (auto track = file->tracks.begin(); track != file->tracks.end(); ++track)
+				for (size_t file_idx = 0; file_idx < track->files.size(); ++file_idx)
 				{
-					printf("\t\tTrack %d\n", track->first);
+					printf("\t\tFile %zu: %s\n", file_idx, track->files[file_idx].c_str());
+				}
 
-					for (auto index = track->second.indices.begin(); index != track->second.indices.end(); ++index)
-					{
-						printf("\t\t\tINDEX %02d: %s:%s.%s\n", index->first, index->second.minutes.c_str(), index->second.seconds.c_str(), frames_to_seconds_map[index->second.frames].c_str());
-					}
+				for (auto index = track->indices.begin(); index != track->indices.end(); ++index)
+				{
+					printf("\t\tINDEX %02d: file %zu, %s:%s.%s\n", index->first, index->second.file_index, index->second.time.minutes.c_str(), index->second.time.seconds.c_str(), frames_to_seconds_map[index->second.time.frames].c_str());
+				}
 
-					for (auto tag = track->second.tags.begin(); tag != track->second.tags.end(); ++tag)
-					{
-						printf("\t\t\t%s=%s\n", tag->first.c_str(), tag->second.c_str());
-					}
+				for (auto tag = track->tags.begin(); tag != track->tags.end(); ++tag)
+				{
+					printf("\t\t%s=%s\n", tag->first.c_str(), tag->second.c_str());
 				}
 			}
 
@@ -394,21 +645,24 @@ int main(int argc, char **argv)
 		{
 			for (auto track = tracks.begin(); track != tracks.end(); ++track)
 			{
-				if (track->start_time)
+				for (auto part = track->parts.begin(); part != track->parts.end(); ++part)
 				{
-					if (!convert_and_save_frames(frames_to_seconds_map, track->start_time->frames))
+					if (part->start_time)
 					{
-						fprintf(stderr, "Failed to convert frames for file %s, track %u, start time: value is %s\n", track->filename.c_str(), track->index, track->start_time->frames.c_str());
-						return -1;
+						if (!convert_and_save_frames(frames_to_seconds_map, part->start_time->frames))
+						{
+							fprintf(stderr, "Failed to convert frames for track %u, file %s, start time: value is %s\n", track->index, part->filename.c_str(), part->start_time->frames.c_str());
+							return -1;
+						}
 					}
-				}
 
-				if (track->end_time)
-				{
-					if (!convert_and_save_frames(frames_to_seconds_map, track->end_time->frames))
+					if (part->end_time)
 					{
-						fprintf(stderr, "Failed to convert frames for file %s, track %u, end time: value is %s\n", track->filename.c_str(), track->index, track->end_time->frames.c_str());
-						return -1;
+						if (!convert_and_save_frames(frames_to_seconds_map, part->end_time->frames))
+						{
+							fprintf(stderr, "Failed to convert frames for track %u, file %s, end time: value is %s\n", track->index, part->filename.c_str(), part->end_time->frames.c_str());
+							return -1;
+						}
 					}
 				}
 			}
@@ -419,33 +673,40 @@ int main(int argc, char **argv)
 			for (auto track = tracks.begin(); track != tracks.end(); ++track)
 			{
 				printf("Track %d\n", track->index);
-				printf("Filename: %s\n", track->filename.c_str());
 
-				if (track->start_time)
+				for (auto part = track->parts.begin(); part != track->parts.end(); ++part)
 				{
-					printf("Start: %s:%s.%s\n", track->start_time->minutes.c_str(), track->start_time->seconds.c_str(), frames_to_seconds_map[track->start_time->frames].c_str());
-				}
-				else
-				{
-					printf("Start: NONE\n");
-				}
+					printf("Filename: %s\n", part->filename.c_str());
 
-				if (track->end_time)
-				{
-					printf("End:   %s:%s.%s\n", track->end_time->minutes.c_str(), track->end_time->seconds.c_str(), frames_to_seconds_map[track->end_time->frames].c_str());
-				}
-				else
-				{
-					printf("End:   NONE\n");
+					if (part->start_time)
+					{
+						printf("Start: %s:%s.%s\n", part->start_time->minutes.c_str(), part->start_time->seconds.c_str(), frames_to_seconds_map[part->start_time->frames].c_str());
+					}
+					else
+					{
+						printf("Start: NONE\n");
+					}
+
+					if (part->end_time)
+					{
+						printf("End:   %s:%s.%s\n", part->end_time->minutes.c_str(), part->end_time->seconds.c_str(), frames_to_seconds_map[part->end_time->frames].c_str());
+					}
+					else
+					{
+						printf("End:   NONE\n");
+					}
 				}
 
 				for (auto tag = track->tags.begin(); tag != track->tags.end(); ++tag)
 				{
 					printf("%s=%s\n", tag->first.c_str(), tag->second.c_str());
 				}
+
+				printf("\n");
 			}
 		}
 
+#if 0
 		std::list<std::list<std::shared_ptr<dtcue::command> > > commands_list;
 		std::set<std::shared_ptr<dtcue::command>, dtcue::command_comparator> init_commands, deinit_commands;
 

@@ -201,11 +201,11 @@ cue parse_cue_file(const std::string &filename)
 				throw std::runtime_error("Got tag INDEX before any tag TRACK and tag FILE");
 			}
 
-			time_point index;
+			file_time_point index;
 			index.file_index = obtained_track.files.size() - 1;
-			index.minutes = results[2].str();
-			index.seconds = results[3].str();
-			index.frames = results[4].str();
+			index.time.minutes = results[2].str();
+			index.time.seconds = results[3].str();
+			index.time.frames = results[4].str();
 
 			obtained_track.indices[std::stoul(results[1].str())] = index;
 		}
