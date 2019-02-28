@@ -46,7 +46,14 @@ namespace dtcue {
 enum class track_type
 {
 	unknown = 0,
-	audio
+	audio,
+	cdg,
+	mode1_2048,
+	mode1_2352,
+	mode2_2336,
+	mode2_2352,
+	cdi_2336,
+	cdi_2352
 };
 
 enum class track_flags

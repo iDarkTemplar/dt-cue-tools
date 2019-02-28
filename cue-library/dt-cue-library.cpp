@@ -118,7 +118,7 @@ cue parse_cue_file(const std::string &filename)
 	regex regex_title("^[ \t]*TITLE[ \t]+\"([^\"]*)\"[ \t[:cntrl:]]*$");
 	regex regex_performer("^[ \t]*PERFORMER[ \t]+\"([^\"]*)\"[ \t[:cntrl:]]*$");
 	regex regex_file("^[ \t]*FILE[ \t]+\"([^\"]*)\"[ \t]+[[:alnum:]]+[ \t[:cntrl:]]*$");
-	regex regex_track("^[ \t]*TRACK[ \t]+([[:digit:]]+)[ \t]+([[:alpha:]]+)[ \t[:cntrl:]]*$");
+	regex regex_track("^[ \t]*TRACK[ \t]+([[:digit:]]+)[ \t]+([[:alnum:]/]+)[ \t[:cntrl:]]*$");
 	regex regex_index("^[ \t]*INDEX[ \t]+([[:digit:]]+)[ \t]+([[:digit:]]+)[:\\.,]([[:digit:]]+)[:\\.,]([[:digit:]]+)[ \t[:cntrl:]]*$");
 	regex regex_cdtextfile("^[ \t]*CDTEXTFILE[ \t]+\"([^\"]*)\"[ \t[:cntrl:]]*$");
 	regex regex_flags("^[ \t]*FLAGS[ \t]+([[:alnum:]]+(?:[ \t]+[[:alnum:]]+)*)[ \t[:cntrl:]]*$");
@@ -132,10 +132,21 @@ cue parse_cue_file(const std::string &filename)
 	smatch results;
 
 	std::map<std::string, track_flags> string_to_flag_map = {
-		{ "DCP", track_flags::flag_dcp },
-		{ "4CH", track_flags::flag_4ch },
-		{ "PRE", track_flags::flag_pre },
+		{ "DCP",  track_flags::flag_dcp },
+		{ "4CH",  track_flags::flag_4ch },
+		{ "PRE",  track_flags::flag_pre },
 		{ "SCMS", track_flags::flag_scms }
+	};
+
+	std::map<std::string, track_type> string_to_type_map = {
+		{ "AUDIO",      track_type::audio },
+		{ "CDG",        track_type::cdg },
+		{ "MODE1/2048", track_type::mode1_2048 },
+		{ "MODE1/2352", track_type::mode1_2352 },
+		{ "MODE2/2336", track_type::mode2_2336 },
+		{ "MODE2/2352", track_type::mode2_2352 },
+		{ "CDI/2336",   track_type::cdi_2336 },
+		{ "CDI/2352",   track_type::cdi_2352 }
 	};
 
 	bool got_track = false;
@@ -214,16 +225,15 @@ cue parse_cue_file(const std::string &filename)
 			obtained_track = track();
 			obtained_track.track_index = std::stoul(results[1].str());
 
-			// NOTE: check type being AUDIO, everything else is ignored
-			if (results[2].str() == std::string("AUDIO"))
+			auto iter = string_to_type_map.find(results[2].str());
+			if (iter == string_to_type_map.end())
 			{
-				obtained_track.type = dtcue::track_type::audio;
-			}
-			else
-			{
-				obtained_track.type = dtcue::track_type::unknown;
+				std::stringstream err;
+				err << "Track type " << results[2].str() << " is not supported";
+				throw std::runtime_error(err.str());
 			}
 
+			obtained_track.type = iter->second;
 			obtained_track.files.push_back(last_file_name);
 		}
 		else if (regex_match(file_line, results, regex_index))

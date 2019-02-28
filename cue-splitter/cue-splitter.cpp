@@ -132,6 +132,13 @@ std::list<track_data> convert_cue_to_tracks(const dtcue::cue &cue, gap_action_ty
 	{
 		++next_track;
 
+		if (track->type != dtcue::track_type::audio)
+		{
+			std::stringstream err;
+			err << "Track with index " << track->track_index << " has unsupported type";
+			throw std::runtime_error(err.str());
+		}
+
 		auto index0 = track->indices.find(0);
 		auto index1 = track->indices.find(1);
 
