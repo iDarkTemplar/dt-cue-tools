@@ -187,301 +187,120 @@ std::list<track_data> convert_cue_to_tracks(const dtcue::cue &cue, gap_action_ty
 			data.tags.erase(skipped_tag);
 		}
 
+		size_t index = index1->second.file_index;
+		dtcue::time_point initial_timepoint = index1->second.time;
+
 		switch (gap_action)
 		{
 		case gap_action_type::discard:
-			{
-				size_t index = index1->second.file_index;
-
-				{
-					track_part part;
-
-					part.filename = track->files[index];
-					part.start_time = index1->second.time;
-
-					data.parts.push_back(part);
-				}
-
-				for (++index ; index < track->files.size(); ++index)
-				{
-					track_part part;
-
-					part.filename = track->files[index];
-
-					data.parts.push_back(part);
-				}
-
-				if (next_track != cue.tracks.end())
-				{
-					std::string filename;
-					dtcue::time_point timepoint;
-
-					if (index0_next && ((*index0_next) != next_track->indices.end()))
-					{
-						filename = next_track->files[(*index0_next)->second.file_index];
-						timepoint = (*index0_next)->second.time;
-					}
-					else
-					{
-						filename = next_track->files[(*index1_next)->second.file_index];
-						timepoint = (*index1_next)->second.time;
-					}
-
-					if (is_timepoint_zero(timepoint))
-					{
-						if (data.parts.back().filename != filename)
-						{
-							std::stringstream err;
-							err << "Track with index " << next_track->track_index << " has invalid starting timestamp";
-							throw std::runtime_error(err.str());
-						}
-
-						data.parts.pop_back();
-					}
-					else
-					{
-						if (data.parts.back().filename != filename)
-						{
-							std::stringstream err;
-							err << "Track with index " << next_track->track_index << " doesn't continue at same file as previous track";
-							throw std::runtime_error(err.str());
-						}
-
-						data.parts.back().end_time = timepoint;
-					}
-				}
-			}
+		case gap_action_type::append:
 			break;
 
 		case gap_action_type::prepend:
+			if (index0 != track->indices.end())
 			{
-				size_t index = index1->second.file_index;
-				dtcue::time_point initial_timepoint = index1->second.time;
-
-				if (index0 != track->indices.end())
-				{
-					index = index0->second.file_index;
-					initial_timepoint = index0->second.time;
-				}
-
-				{
-					track_part part;
-
-					part.filename = track->files[index];
-					part.start_time = initial_timepoint;
-
-					data.parts.push_back(part);
-				}
-
-				for (++index ; index < track->files.size(); ++index)
-				{
-					track_part part;
-
-					part.filename = track->files[index];
-
-					data.parts.push_back(part);
-				}
-
-				if (next_track != cue.tracks.end())
-				{
-					std::string filename;
-					dtcue::time_point timepoint;
-
-					if (index0_next && ((*index0_next) != next_track->indices.end()))
-					{
-						filename = next_track->files[(*index0_next)->second.file_index];
-						timepoint = (*index0_next)->second.time;
-					}
-					else
-					{
-						filename = next_track->files[(*index1_next)->second.file_index];
-						timepoint = (*index1_next)->second.time;
-					}
-
-					if (is_timepoint_zero(timepoint))
-					{
-						if (data.parts.back().filename != filename)
-						{
-							std::stringstream err;
-							err << "Track with index " << next_track->track_index << " has invalid starting timestamp";
-							throw std::runtime_error(err.str());
-						}
-
-						data.parts.pop_back();
-					}
-					else
-					{
-						if (data.parts.back().filename != filename)
-						{
-							std::stringstream err;
-							err << "Track with index " << next_track->track_index << " doesn't continue at same file as previous track";
-							throw std::runtime_error(err.str());
-						}
-
-						data.parts.back().end_time = timepoint;
-					}
-				}
-			}
-			break;
-
-		case gap_action_type::append:
-			{
-				size_t index = index1->second.file_index;
-
-				{
-					track_part part;
-
-					part.filename = track->files[index];
-					part.start_time = index1->second.time;
-
-					data.parts.push_back(part);
-				}
-
-				for (++index ; index < track->files.size(); ++index)
-				{
-					track_part part;
-
-					part.filename = track->files[index];
-
-					data.parts.push_back(part);
-				}
-
-				if (next_track != cue.tracks.end())
-				{
-					std::string filename;
-					dtcue::time_point timepoint;
-
-					if ((*index1_next)->second.file_index != 0)
-					{
-						index = 0;
-						size_t last_index = (*index1_next)->second.file_index;
-
-						if (data.parts.back().filename == next_track->files[0])
-						{
-							index = 1;
-						}
-
-						for ( ; index <= last_index; ++index)
-						{
-							track_part part;
-
-							part.filename = next_track->files[index];
-
-							data.parts.push_back(part);
-						}
-					}
-
-					filename = next_track->files[(*index1_next)->second.file_index];
-					timepoint = (*index1_next)->second.time;
-
-					if (is_timepoint_zero(timepoint))
-					{
-						if (data.parts.back().filename != filename)
-						{
-							std::stringstream err;
-							err << "Track with index " << next_track->track_index << " has invalid starting timestamp";
-							throw std::runtime_error(err.str());
-						}
-
-						data.parts.pop_back();
-					}
-					else
-					{
-						if (data.parts.back().filename != filename)
-						{
-							std::stringstream err;
-							err << "Track with index " << next_track->track_index << " doesn't continue at same file as previous track";
-							throw std::runtime_error(err.str());
-						}
-
-						data.parts.back().end_time = timepoint;
-					}
-				}
+				index = index0->second.file_index;
+				initial_timepoint = index0->second.time;
 			}
 			break;
 
 		case gap_action_type::prepend_first_then_append:
+			if ((index0 != track->indices.end()) && (track == cue.tracks.begin()))
 			{
-				size_t index = index1->second.file_index;
-				dtcue::time_point initial_timepoint = index1->second.time;
-
-				if ((index0 != track->indices.end()) && (track == cue.tracks.begin()))
-				{
-					index = index0->second.file_index;
-					initial_timepoint = index0->second.time;
-				}
-
-				{
-					track_part part;
-
-					part.filename = track->files[index];
-					part.start_time = initial_timepoint;
-
-					data.parts.push_back(part);
-				}
-
-				for (++index ; index < track->files.size(); ++index)
-				{
-					track_part part;
-
-					part.filename = track->files[index];
-
-					data.parts.push_back(part);
-				}
-
-				if (next_track != cue.tracks.end())
-				{
-					std::string filename;
-					dtcue::time_point timepoint;
-
-					if ((*index1_next)->second.file_index != 0)
-					{
-						index = 0;
-						size_t last_index = (*index1_next)->second.file_index;
-
-						if (data.parts.back().filename == next_track->files[0])
-						{
-							index = 1;
-						}
-
-						for ( ; index <= last_index; ++index)
-						{
-							track_part part;
-
-							part.filename = next_track->files[index];
-
-							data.parts.push_back(part);
-						}
-					}
-
-					filename = next_track->files[(*index1_next)->second.file_index];
-					timepoint = (*index1_next)->second.time;
-
-					if (is_timepoint_zero(timepoint))
-					{
-						if (data.parts.back().filename != filename)
-						{
-							std::stringstream err;
-							err << "Track with index " << next_track->track_index << " has invalid starting timestamp";
-							throw std::runtime_error(err.str());
-						}
-
-						data.parts.pop_back();
-					}
-					else
-					{
-						if (data.parts.back().filename != filename)
-						{
-							std::stringstream err;
-							err << "Track with index " << next_track->track_index << " doesn't continue at same file as previous track";
-							throw std::runtime_error(err.str());
-						}
-
-						data.parts.back().end_time = timepoint;
-					}
-				}
+				index = index0->second.file_index;
+				initial_timepoint = index0->second.time;
 			}
 			break;
+		}
+
+		{
+			track_part part;
+
+			part.filename = track->files[index];
+			part.start_time = initial_timepoint;
+
+			data.parts.push_back(part);
+		}
+
+		for (++index ; index < track->files.size(); ++index)
+		{
+			track_part part;
+
+			part.filename = track->files[index];
+
+			data.parts.push_back(part);
+		}
+
+		if (next_track != cue.tracks.end())
+		{
+			std::string filename;
+			dtcue::time_point timepoint;
+
+			switch (gap_action)
+			{
+			case gap_action_type::discard:
+			case gap_action_type::prepend:
+				if (index0_next && ((*index0_next) != next_track->indices.end()))
+				{
+					filename = next_track->files[(*index0_next)->second.file_index];
+					timepoint = (*index0_next)->second.time;
+				}
+				else
+				{
+					filename = next_track->files[(*index1_next)->second.file_index];
+					timepoint = (*index1_next)->second.time;
+				}
+				break;
+
+			case gap_action_type::append:
+			case gap_action_type::prepend_first_then_append:
+				if ((*index1_next)->second.file_index != 0)
+				{
+					index = 0;
+					size_t last_index = (*index1_next)->second.file_index;
+
+					if (data.parts.back().filename == next_track->files[0])
+					{
+						index = 1;
+					}
+
+					for ( ; index <= last_index; ++index)
+					{
+						track_part part;
+
+						part.filename = next_track->files[index];
+
+						data.parts.push_back(part);
+					}
+				}
+
+				filename = next_track->files[(*index1_next)->second.file_index];
+				timepoint = (*index1_next)->second.time;
+				break;
+			}
+
+			if (is_timepoint_zero(timepoint))
+			{
+				if (data.parts.back().filename != filename)
+				{
+					std::stringstream err;
+					err << "Track with index " << next_track->track_index << " has invalid starting timestamp";
+					throw std::runtime_error(err.str());
+				}
+
+				data.parts.pop_back();
+			}
+			else
+			{
+				if (data.parts.back().filename != filename)
+				{
+					std::stringstream err;
+					err << "Track with index " << next_track->track_index << " doesn't continue at same file as previous track";
+					throw std::runtime_error(err.str());
+				}
+
+				data.parts.back().end_time = timepoint;
+			}
 		}
 
 		result.push_back(data);
