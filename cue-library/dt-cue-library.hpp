@@ -25,21 +25,7 @@
 #include <map>
 #include <vector>
 
-#if USE_BOOST
-
-#include <boost/optional.hpp>
-
-template <typename T>
-using optional = boost::optional<T>;
-
-#else /* USE_BOOST */
-
 #include <experimental/optional>
-
-template <typename T>
-using optional = std::experimental::optional<T>;
-
-#endif /* USE_BOOST */
 
 namespace dtcue {
 
@@ -96,8 +82,8 @@ struct track
 	track_type type;
 
 	track_flags flags;
-	optional<time_point> pregap;
-	optional<time_point> postgap;
+	std::experimental::optional<time_point> pregap;
+	std::experimental::optional<time_point> postgap;
 
 	std::vector<std::string> files;
 	std::map<unsigned int, file_time_point> indices;

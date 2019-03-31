@@ -1,11 +1,8 @@
-project(DT-Cue-Tools)
+cmake_minimum_required( VERSION 3.12.0 )
 
-cmake_minimum_required( VERSION 2.8.8 )
-
-set(DTCT_VERSION_MAJOR 0)
-set(DTCT_VERSION_MINOR 4)
-set(DTCT_VERSION_PATCH 0)
-set(DTCT_VERSION "${DTCT_VERSION_MAJOR}.${DTCT_VERSION_MINOR}.${DTCT_VERSION_PATCH}")
+project(DT-Cue-Tools
+	VERSION 0.4.0
+	LANGUAGES CXX)
 
 # installation directory configuration
 set(LIB_SUFFIX "" CACHE STRING "Define suffix of directory name (32/64)")
@@ -18,7 +15,6 @@ set(DATA_PREFIX "${CMAKE_INSTALL_PREFIX}/share" CACHE PATH "Prefix prepended to 
 
 option(ENABLE_LIBVERSION "enable libraries versioning" ON)
 option(ENABLE_SPLIT_TOOL "enable split tool" ON)
-option(USE_BOOST "use boost components instead of std or custom ones" OFF)
 
 # don't USE -O3 with GCC, it causes less precise calculations
 if (CMAKE_COMPILER_IS_GNUCC)
@@ -40,16 +36,7 @@ if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
 	set (CMAKE_CXX_FLAGS_DEBUG ${CMAKE_C_FLAGS_DEBUG})
 endif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
 
-if (USE_BOOST)
-	FIND_PACKAGE( Boost COMPONENTS regex REQUIRED )
-	INCLUDE_DIRECTORIES( ${Boost_INCLUDE_DIR} )
-	add_definitions(-DUSE_BOOST=1)
-	set (EXTRA_LIBS ${Boost_LIBRARIES})
-	set (CMAKE_CXX_STANDARD 11)
-else (USE_BOOST)
-	set (EXTRA_LIBS)
-	set (CMAKE_CXX_STANDARD 14)
-endif (USE_BOOST)
+set (CMAKE_CXX_STANDARD 14)
 
 add_definitions(-D_FILE_OFFSET_BITS=64)
 include_directories( ${CMAKE_CURRENT_SOURCE_DIR} )
@@ -59,17 +46,17 @@ set ( CUE_LIBRARY_SOURCES cue-library/dt-cue-library.cpp )
 set ( CUE_LIBRARY_HEADERS cue-library/dt-cue-library.hpp )
 
 set ( CUE_APP_SOURCES cue-splitter/cue-splitter.cpp cue-splitter/cue-action.cpp)
-set ( CUE_APP_HEADERS cue-splitter/cue-types.hpp    cue-splitter/cue-action.hpp)
+set ( CUE_APP_HEADERS                               cue-splitter/cue-action.hpp)
 
 add_library( dt-cue-parser SHARED ${CUE_LIBRARY_SOURCES} ${CUE_LIBRARY_HEADERS} )
 if (ENABLE_LIBVERSION)
-	set_target_properties( dt-cue-parser PROPERTIES VERSION ${DTCT_VERSION} SOVERSION ${DTCT_VERSION_MAJOR} )
+	set_target_properties( dt-cue-parser PROPERTIES VERSION ${PROJECT_VERSION} SOVERSION ${PROJECT_VERSION_MAJOR} )
 endif (ENABLE_LIBVERSION)
-target_link_libraries( dt-cue-parser ${EXTRA_LIBS} )
+target_link_libraries( dt-cue-parser )
 
 if (ENABLE_SPLIT_TOOL)
 	add_executable( dt-cue-split ${CUE_APP_SOURCES} ${CUE_APP_HEADERS})
-	target_link_libraries( dt-cue-split dt-cue-parser ${EXTRA_LIBS} )
+	target_link_libraries( dt-cue-split dt-cue-parser )
 endif (ENABLE_SPLIT_TOOL)
 
 # installation config

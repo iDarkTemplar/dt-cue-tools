@@ -26,8 +26,6 @@
 
 #include <dt-cue-library.hpp>
 
-#include "cue-types.hpp"
-
 namespace dtcue {
 
 struct command_comparator;

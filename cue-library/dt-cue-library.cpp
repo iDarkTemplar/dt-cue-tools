@@ -27,6 +27,7 @@
 #include <sstream>
 #include <string>
 #include <type_traits>
+#include <regex>
 
 #include <utility>
 
@@ -35,32 +36,6 @@
 #ifndef NDEBUG
 #include <stdio.h>
 #endif /* NDEBUG */
-
-#if USE_BOOST
-
-#include <boost/regex.hpp>
-
-using regex = boost::regex;
-using smatch = boost::smatch;
-
-static inline bool regex_match(const std::string &str, boost::smatch &match_results, const boost::regex &regex_string)
-{
-	return boost::regex_match(str, match_results, regex_string);
-}
-
-#else /* USE_BOOST */
-
-#include <regex>
-
-using regex = std::regex;
-using smatch = std::smatch;
-
-static inline bool regex_match(const std::string &str, std::smatch &match_results, const std::regex &regex_string)
-{
-	return std::regex_match(str, match_results, regex_string);
-}
-
-#endif /* USE_BOOST */
 
 namespace dtcue {
 
@@ -115,21 +90,21 @@ cue parse_cue_file(const std::string &filename)
 
 	cue result;
 
-	regex regex_title("^[ \t]*TITLE[ \t]+\"([^\"]*)\"[ \t[:cntrl:]]*$");
-	regex regex_performer("^[ \t]*PERFORMER[ \t]+\"([^\"]*)\"[ \t[:cntrl:]]*$");
-	regex regex_file("^[ \t]*FILE[ \t]+\"([^\"]*)\"[ \t]+[[:alnum:]]+[ \t[:cntrl:]]*$");
-	regex regex_track("^[ \t]*TRACK[ \t]+([[:digit:]]+)[ \t]+([[:alnum:]/]+)[ \t[:cntrl:]]*$");
-	regex regex_index("^[ \t]*INDEX[ \t]+([[:digit:]]+)[ \t]+([[:digit:]]+)[:\\.,]([[:digit:]]+)[:\\.,]([[:digit:]]+)[ \t[:cntrl:]]*$");
-	regex regex_cdtextfile("^[ \t]*CDTEXTFILE[ \t]+\"([^\"]*)\"[ \t[:cntrl:]]*$");
-	regex regex_flags("^[ \t]*FLAGS[ \t]+([[:alnum:]]+(?:[ \t]+[[:alnum:]]+)*)[ \t[:cntrl:]]*$");
-	regex regex_pregap("^[ \t]*PREGAP[ \t]+([[:digit:]]+)[:\\.,]([[:digit:]]+)[:\\.,]([[:digit:]]+)[ \t[:cntrl:]]*$");
-	regex regex_postgap("^[ \t]*POSTGAP[ \t]+([[:digit:]]+)[:\\.,]([[:digit:]]+)[:\\.,]([[:digit:]]+)[ \t[:cntrl:]]*$");
-	regex regex_comment_quoted("^[ \t]*REM[ \t]+([[:alnum:]]+)[ \t]+\"([^\"]*)\"[ \t[:cntrl:]]*$");
-	regex regex_comment_plain("^[ \t]*REM[ \t]+([[:alnum:]]+)[ \t]+([^[:cntrl:]]+)[ \t[:cntrl:]]*$");
-	regex regex_else_quoted("^[ \t]*([[:alnum:]]+)[ \t]+\"([^\"]*)\"[ \t[:cntrl:]]*$");
-	regex regex_else_plain("^[ \t]*([[:alnum:]]+)[ \t]+([^[:cntrl:]]+)[ \t[:cntrl:]]*$");
+	std::regex regex_title("^[ \t]*TITLE[ \t]+\"([^\"]*)\"[ \t[:cntrl:]]*$");
+	std::regex regex_performer("^[ \t]*PERFORMER[ \t]+\"([^\"]*)\"[ \t[:cntrl:]]*$");
+	std::regex regex_file("^[ \t]*FILE[ \t]+\"([^\"]*)\"[ \t]+[[:alnum:]]+[ \t[:cntrl:]]*$");
+	std::regex regex_track("^[ \t]*TRACK[ \t]+([[:digit:]]+)[ \t]+([[:alnum:]/]+)[ \t[:cntrl:]]*$");
+	std::regex regex_index("^[ \t]*INDEX[ \t]+([[:digit:]]+)[ \t]+([[:digit:]]+)[:\\.,]([[:digit:]]+)[:\\.,]([[:digit:]]+)[ \t[:cntrl:]]*$");
+	std::regex regex_cdtextfile("^[ \t]*CDTEXTFILE[ \t]+\"([^\"]*)\"[ \t[:cntrl:]]*$");
+	std::regex regex_flags("^[ \t]*FLAGS[ \t]+([[:alnum:]]+(?:[ \t]+[[:alnum:]]+)*)[ \t[:cntrl:]]*$");
+	std::regex regex_pregap("^[ \t]*PREGAP[ \t]+([[:digit:]]+)[:\\.,]([[:digit:]]+)[:\\.,]([[:digit:]]+)[ \t[:cntrl:]]*$");
+	std::regex regex_postgap("^[ \t]*POSTGAP[ \t]+([[:digit:]]+)[:\\.,]([[:digit:]]+)[:\\.,]([[:digit:]]+)[ \t[:cntrl:]]*$");
+	std::regex regex_comment_quoted("^[ \t]*REM[ \t]+([[:alnum:]]+)[ \t]+\"([^\"]*)\"[ \t[:cntrl:]]*$");
+	std::regex regex_comment_plain("^[ \t]*REM[ \t]+([[:alnum:]]+)[ \t]+([^[:cntrl:]]+)[ \t[:cntrl:]]*$");
+	std::regex regex_else_quoted("^[ \t]*([[:alnum:]]+)[ \t]+\"([^\"]*)\"[ \t[:cntrl:]]*$");
+	std::regex regex_else_plain("^[ \t]*([[:alnum:]]+)[ \t]+([^[:cntrl:]]+)[ \t[:cntrl:]]*$");
 
-	smatch results;
+	std::smatch results;
 
 	std::map<std::string, track_flags> string_to_flag_map = {
 		{ "DCP",  track_flags::flag_dcp },
@@ -161,7 +136,7 @@ cue parse_cue_file(const std::string &filename)
 		printf("Line: %s\n", file_line.c_str());
 #endif /* NDEBUG */
 
-		if (regex_match(file_line, results, regex_title))
+		if (std::regex_match(file_line, results, regex_title))
 		{
 #ifndef NDEBUG
 			printf("\tGot title: %s\n", results[1].str().c_str());
@@ -169,7 +144,7 @@ cue parse_cue_file(const std::string &filename)
 
 			tags["TITLE"] = results[1].str();
 		}
-		else if (regex_match(file_line, results, regex_performer))
+		else if (std::regex_match(file_line, results, regex_performer))
 		{
 #ifndef NDEBUG
 			printf("\tGot performer: %s\n", results[1].str().c_str());
@@ -177,7 +152,7 @@ cue parse_cue_file(const std::string &filename)
 
 			tags["PERFORMER"] = results[1].str();
 		}
-		else if (regex_match(file_line, results, regex_file))
+		else if (std::regex_match(file_line, results, regex_file))
 		{
 #ifndef NDEBUG
 			printf("\tGot file: %s\n", results[1].str().c_str());
@@ -191,7 +166,7 @@ cue parse_cue_file(const std::string &filename)
 				obtained_track.files.push_back(last_file_name);
 			}
 		}
-		else if (regex_match(file_line, results, regex_track))
+		else if (std::regex_match(file_line, results, regex_track))
 		{
 #ifndef NDEBUG
 			printf("\tGot track: %s, type %s\n", results[1].str().c_str(), results[2].str().c_str());
@@ -236,7 +211,7 @@ cue parse_cue_file(const std::string &filename)
 			obtained_track.type = iter->second;
 			obtained_track.files.push_back(last_file_name);
 		}
-		else if (regex_match(file_line, results, regex_index))
+		else if (std::regex_match(file_line, results, regex_index))
 		{
 #ifndef NDEBUG
 			printf("\tGot index: %s, value %s:%s:%s\n", results[1].str().c_str(), results[2].str().c_str(), results[3].str().c_str(), results[4].str().c_str());
@@ -255,7 +230,7 @@ cue parse_cue_file(const std::string &filename)
 
 			obtained_track.indices[std::stoul(results[1].str())] = index;
 		}
-		else if (regex_match(file_line, results, regex_cdtextfile))
+		else if (std::regex_match(file_line, results, regex_cdtextfile))
 		{
 #ifndef NDEBUG
 			printf("\tGot cdtextfile: %s\n", results[1].str().c_str());
@@ -263,7 +238,7 @@ cue parse_cue_file(const std::string &filename)
 
 			result.cdtextfile = results[1].str();
 		}
-		else if (regex_match(file_line, results, regex_flags))
+		else if (std::regex_match(file_line, results, regex_flags))
 		{
 #ifndef NDEBUG
 			printf("\tGot flags: %s\n", results[1].str().c_str());
@@ -293,7 +268,7 @@ cue parse_cue_file(const std::string &filename)
 				}
 			}
 		}
-		else if (regex_match(file_line, results, regex_pregap))
+		else if (std::regex_match(file_line, results, regex_pregap))
 		{
 #ifndef NDEBUG
 			printf("\tGot pregap, value %s:%s:%s\n", results[1].str().c_str(), results[2].str().c_str(), results[3].str().c_str());
@@ -311,7 +286,7 @@ cue parse_cue_file(const std::string &filename)
 
 			obtained_track.pregap = index;
 		}
-		else if (regex_match(file_line, results, regex_postgap))
+		else if (std::regex_match(file_line, results, regex_postgap))
 		{
 #ifndef NDEBUG
 			printf("\tGot postgap, value %s:%s:%s\n", results[1].str().c_str(), results[2].str().c_str(), results[3].str().c_str());
@@ -329,7 +304,7 @@ cue parse_cue_file(const std::string &filename)
 
 			obtained_track.postgap = index;
 		}
-		else if (regex_match(file_line, results, regex_comment_quoted))
+		else if (std::regex_match(file_line, results, regex_comment_quoted))
 		{
 #ifndef NDEBUG
 			printf("\tGot comment quoted:\n\tName: %s\n\tValue: %s\n", results[1].str().c_str(), results[2].str().c_str());
@@ -337,7 +312,7 @@ cue parse_cue_file(const std::string &filename)
 
 			tags[results[1].str()] = results[2].str();
 		}
-		else if (regex_match(file_line, results, regex_comment_plain))
+		else if (std::regex_match(file_line, results, regex_comment_plain))
 		{
 #ifndef NDEBUG
 			printf("\tGot comment:\n\tName: %s\n\tValue: %s\n", results[1].str().c_str(), results[2].str().c_str());
@@ -345,7 +320,7 @@ cue parse_cue_file(const std::string &filename)
 
 			tags[results[1].str()] = results[2].str();
 		}
-		else if (regex_match(file_line, results, regex_else_quoted))
+		else if (std::regex_match(file_line, results, regex_else_quoted))
 		{
 #ifndef NDEBUG
 			printf("\tGot something else with quotes:\n\tName: %s\n\tValue: %s\n", results[1].str().c_str(), results[2].str().c_str());
@@ -353,7 +328,7 @@ cue parse_cue_file(const std::string &filename)
 
 			tags[results[1].str()] = results[2].str();
 		}
-		else if (regex_match(file_line, results, regex_else_plain))
+		else if (std::regex_match(file_line, results, regex_else_plain))
 		{
 #ifndef NDEBUG
 			printf("\tGot something else:\n\tName: %s\n\tValue: %s\n", results[1].str().c_str(), results[2].str().c_str());
