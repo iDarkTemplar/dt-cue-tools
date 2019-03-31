@@ -48,7 +48,7 @@ struct track_data
 {
 	std::map<std::string, std::string> tags;
 
-	unsigned int index;
+	std::string index;
 
 	std::vector<track_part> parts;
 };
@@ -158,9 +158,7 @@ std::list<track_data> convert_cue_to_tracks(const dtcue::cue &cue, gap_action_ty
 
 		if (data.tags.find("TRACKNUMBER") == data.tags.end())
 		{
-			std::stringstream tracknumber;
-			tracknumber << data.index;
-			data.tags["TRACKNUMBER"] = tracknumber.str();
+			data.tags["TRACKNUMBER"] = data.index;
 		}
 
 		// NOTE: rename PERFORMER tag into ARTIST
@@ -396,7 +394,7 @@ int main(int argc, char **argv)
 				{
 					if (!convert_and_save_frames(frames_to_seconds_map, index->second.time.frames))
 					{
-						fprintf(stderr, "Failed to convert frames for track %u, index %u: value is %s\n", track->track_index, index->first, index->second.time.frames.c_str());
+						fprintf(stderr, "Failed to convert frames for track %s, index %u: value is %s\n", track->track_index.c_str(), index->first, index->second.time.frames.c_str());
 						return -1;
 					}
 				}
@@ -416,7 +414,7 @@ int main(int argc, char **argv)
 
 			for (auto track = cuesheet.tracks.begin(); track != cuesheet.tracks.end(); ++track)
 			{
-				printf("\tTrack %u\n", track->track_index);
+				printf("\tTrack %s\n", track->track_index.c_str());
 
 				for (size_t file_idx = 0; file_idx < track->files.size(); ++file_idx)
 				{
@@ -449,7 +447,7 @@ int main(int argc, char **argv)
 					{
 						if (!convert_and_save_frames(frames_to_seconds_map, part->start_time->frames))
 						{
-							fprintf(stderr, "Failed to convert frames for track %u, file %s, start time: value is %s\n", track->index, part->filename.c_str(), part->start_time->frames.c_str());
+							fprintf(stderr, "Failed to convert frames for track %s, file %s, start time: value is %s\n", track->index.c_str(), part->filename.c_str(), part->start_time->frames.c_str());
 							return -1;
 						}
 					}
@@ -458,7 +456,7 @@ int main(int argc, char **argv)
 					{
 						if (!convert_and_save_frames(frames_to_seconds_map, part->end_time->frames))
 						{
-							fprintf(stderr, "Failed to convert frames for track %u, file %s, end time: value is %s\n", track->index, part->filename.c_str(), part->end_time->frames.c_str());
+							fprintf(stderr, "Failed to convert frames for track %s, file %s, end time: value is %s\n", track->index.c_str(), part->filename.c_str(), part->end_time->frames.c_str());
 							return -1;
 						}
 					}
@@ -470,7 +468,7 @@ int main(int argc, char **argv)
 		{
 			for (auto track = tracks.begin(); track != tracks.end(); ++track)
 			{
-				printf("Track %d\n", track->index);
+				printf("Track %s\n", track->index.c_str());
 
 				for (auto part = track->parts.begin(); part != track->parts.end(); ++part)
 				{

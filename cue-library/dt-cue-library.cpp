@@ -198,7 +198,7 @@ cue parse_cue_file(const std::string &filename)
 
 			got_track = true;
 			obtained_track = track();
-			obtained_track.track_index = std::stoul(results[1].str());
+			obtained_track.track_index = results[1].str();
 
 			auto iter = string_to_type_map.find(results[2].str());
 			if (iter == string_to_type_map.end())

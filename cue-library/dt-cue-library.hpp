@@ -78,7 +78,7 @@ struct track
 {
 	std::map<std::string, std::string> tags;
 
-	unsigned int track_index;
+	std::string track_index;
 	track_type type;
 
 	track_flags flags;
@@ -89,8 +89,7 @@ struct track
 	std::map<unsigned int, file_time_point> indices;
 
 	track()
-		: track_index(0),
-		type(track_type::unknown),
+		: type(track_type::unknown),
 		flags(track_flags::flag_none)
 	{
 	}
